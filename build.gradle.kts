@@ -43,3 +43,11 @@ tasks.shadowJar {
 tasks.named("build") {
     dependsOn(tasks.named("shadowJar"))
 }
+
+// The thin JAR and the shadow JAR would otherwise share the same file name
+// (`archiveClassifier` is empty above), so the two tasks race to overwrite
+// build/libs/ZenithProxy-WebUI-<version>.jar and the artifact can end up without
+// Netty on its classpath. Ship exactly one JAR.
+tasks.named<Jar>("jar") {
+    enabled = false
+}

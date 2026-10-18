@@ -4,6 +4,15 @@
 
 ## [未发布]
 
+### 修复
+
+- **构建产物歧义**：`shadowJar` 的 `archiveClassifier` 为空，与默认的 thin JAR 同名
+  （同为 `ZenithProxy-WebUI-<version>.jar`），两个任务竞争覆盖同一个文件，产物可能缺少
+  Netty 依赖。现在禁用 thin `jar` 任务，`build/libs` 下只产出唯一可投放的 fat JAR。
+- **`pluginManagement` 仓库兜底**：`settings.gradle.kts` 的 `pluginManagement.repositories`
+  缺少 `mavenLocal()`，与 `dependencyResolutionManagement` 不一致；现已补齐，
+  本地安装的插件可直接解析。
+
 ## [1.5.1] - 2026-10-18
 
 ### 变更

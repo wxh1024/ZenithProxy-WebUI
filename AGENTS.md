@@ -28,6 +28,10 @@ modules, reading files, `git` operations.
 Requires **Java 21** (set in `build.gradle.kts` toolchain) and network access to
 `maven.2b2t.vc` for the ZenithProxy dependency — both satisfied by the CI runner.
 
+`build.gradle.kts` disables the default thin `jar` task: `shadowJar` sets `archiveClassifier` to
+empty so the distributable is named `ZenithProxy-WebUI-<version>.jar`, which would otherwise
+collide with the thin JAR of the same name. Exactly one JAR lands in `build/libs`.
+
 ## Project Structure
 
 ```
