@@ -1,0 +1,10 @@
+{
+  "auto_update": false,
+  "auto_update_launcher": false,
+  "release_channel": "java.1.21.4",
+  "version": "3.7.3+java.1.21.4",
+  "local_version": "3.7.3+java.1.21.4",
+  "repo_owner": "rfresh2",
+  "repo_name": "ZenithProxy",
+  "custom_jvm_args": null
+}
