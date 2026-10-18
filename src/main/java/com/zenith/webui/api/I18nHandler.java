@@ -2,7 +2,7 @@ package com.zenith.webui.api;
 
 import com.zenith.webui.config.WebUIConfig;
 import com.zenith.webui.http.HttpHelper;
-import com.zenith.webui.terminal.LogTranslator;
+import com.zenith.webui.terminal.LogPhrases;
 import io.netty.channel.ChannelHandlerContext;
 
 import java.util.LinkedHashMap;
@@ -28,7 +28,7 @@ public class I18nHandler {
         String lang = config.language == null ? "auto" : config.language;
         data.put("defaultLanguage", lang);
         data.put("supported", new String[] { "zh", "en" });
-        data.put("logPhrases", LogTranslator.phraseTable());
+        data.put("logPhrases", LogPhrases.table());
         HttpHelper.sendJson(ctx, data);
     }
 }

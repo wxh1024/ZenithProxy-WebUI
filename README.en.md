@@ -104,9 +104,10 @@ order:
 4. `navigator.languages` — the browser's own preference
 5. `zh` as the final fallback
 
-Log lines are translated per visitor too: the server streams the original English text and
-the browser renders it in the selected language, so an English visitor sees readable English
-rather than a Chinese-only translation.
+Log lines are only ever translated for Chinese readers. Log messages are English to begin
+with, so the server streams the original text and never translates it; the browser applies
+the phrase table only when the selected language is Chinese. An English visitor therefore
+always sees the untranslated original — there is no Chinese-only translation in the way.
 
 ## API endpoints
 

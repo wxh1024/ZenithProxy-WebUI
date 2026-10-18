@@ -46,6 +46,7 @@ src/main/java/com/zenith/webui/
   server/                   # Netty bootstrap + request routing
   staticfile/               # Static file serving with bounded LRU cache
   terminal/                 # Log phrase table, Logback appender, LogEntry DTO
+    LogPhrases.java         # English→Chinese table served to the browser (no logic)
 src/main/resources/
   web/
     index.html, login.html, styles.css   # Pages + styles (Catppuccin Macchiato)
@@ -77,7 +78,7 @@ plugins/webui/
 - **No test suite, no linter, no local build.** CI (`.github/workflows/build.yml`) is the only verification step; it compiles, checks the version pair (build.gradle.kts ↔ plugin.json) and uploads the JAR. Commit + push, then read the CI result — never run Gradle locally.
 - **Frontend is ES modules, no bundler**: `index.html` loads `js/app.js` via `<script type="module">`. Modules must not import each other cyclically — shared mutable values live in `state.js` and are imported as live bindings. Inline `onclick=` handlers in the HTML resolve against the `Object.assign(window, {...})` block in `js/app.js`.
 - **i18n**: `js/i18n.js` owns all UI strings. Language resolution order is `?lang=` query → localStorage → `config.json` `language` → `navigator.languages` → `zh`. HTML binds through `data-i18n` / `data-i18n-placeholder` / `data-i18n-title`; `applyTranslations()` re-renders the page after a switch, so a missing key degrades to the Chinese original rather than an empty label.
-- **Log translation moved to the client**: the server streams raw English log messages; `js/i18n.js` translates them per visitor using the phrase table served by `GET /api/i18n` (sourced from `LogTranslator.phraseTable()`). Longest phrase first, so "Disconnected from server" wins over "Disconnected".
+- **Log translation is Chinese-only, and happens on the client**: the server never translates — it streams raw English log messages. `js/i18n.js` applies the phrase table only when the visitor's language is `zh`; English visitors get the original text untouched. The table lives in `LogPhrases` (a plain data holder, no translation logic) and is served by `GET /api/i18n`. The browser sorts keys longest-first so "Disconnected from server" wins over "Disconnected".
 - **External dependency**: ZenithProxy is resolved from Maven — `com.zenith:ZenithProxy:<proxy>+<mc>`
   (e.g. `3.7.3+1.21.4`) as `compileOnly`. Repositories (`maven.2b2t.vc/releases`, `/remote`) are declared
   in `settings.gradle.kts`; the version lives in `build.gradle.kts` as `zenithProxyVersion`.
