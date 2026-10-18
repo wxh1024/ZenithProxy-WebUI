@@ -60,14 +60,8 @@ function initLanguageSwitcher() {
 
     window.addEventListener('webui:languagechange', e => {
         select.value = e.detail.lang;
-        renderVersionBadge();
         emitLanguageChange(e.detail.lang);
     });
-}
-
-function renderVersionBadge() {
-    const el = document.getElementById('version');
-    if (el && el.dataset.version) el.textContent = 'v' + el.dataset.version;
 }
 
 // ── Auth gate ───────────────────────────────────────────────────────
@@ -92,7 +86,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Language must resolve before the first paint of localized text.
     await initI18n();
     applyTranslations();
-    renderVersionBadge();
 
     if (!await initAuth()) return;
 

@@ -15,6 +15,7 @@ let stopLogStream = null;
 let welcomeRendered = false;
 
 const output = () => document.getElementById('terminalOutput');
+const inputEl = () => document.getElementById('terminalInput');
 
 // ── Rendering ───────────────────────────────────────────────────────
 
@@ -293,5 +294,7 @@ export function initTerminalPage() {
         updateTerminalStatus();
         updateTerminalCounts();
         refreshTerminalLogs();
+        // Descriptions are language-dependent; repaint an open dropdown.
+        if (isAutocompleteVisible()) showAutocomplete(inputEl()?.value || '');
     });
 }

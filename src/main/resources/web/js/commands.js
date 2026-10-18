@@ -9,6 +9,8 @@
 import { API_BASE } from './api.js';
 import { state, LIMITS } from './state.js';
 import { escapeHtml } from './util.js';
+import { isZh } from './i18n.js';
+import { zhCommandDescription } from './commandDesc.js';
 
 /** Fallback command list; replaced by `GET /api/commands` on load. */
 const KNOWN_COMMANDS = [
@@ -170,6 +172,17 @@ const input = () => document.getElementById('terminalInput');
  * Reuses the previous result set when the query merely grew, which keeps
  * typing latency flat on large command lists.
  */
+/**
+ * Picks the description shown in the dropdown.
+ * Chinese mode uses the local commandDesc table (the core jar only ships
+ * English); English mode passes the core text through untouched. Commands
+ * missing from the table fall back to the core description in both modes.
+ */
+function describeCommand(cmd) {
+    if (isZh()) return zhCommandDescription(cmd.name) || cmd.description || '';
+    return cmd.description || '';
+}
+
 export function showAutocomplete(value) {
     const dd = dropdown();
     if (!dd) return;
@@ -195,10 +208,11 @@ export function showAutocomplete(value) {
     selectedIndex = -1;
 
     dd.innerHTML = suggestions.map((c, i) => {
-        const desc = c.description ? `<span class="autocomplete-desc">${escapeHtml(c.description)}</span>` : '';
+        const desc = describeCommand(c);
+        const descHtml = desc ? `<span class="autocomplete-desc">${escapeHtml(desc)}</span>` : '';
         const aliasHint = c._aliasMatch ? `<span class="autocomplete-alias-hint">← ${escapeHtml(c._aliasMatch)}</span>` : '';
         return `<div class="autocomplete-item" data-index="${i}">
-            <span class="autocomplete-name">${highlightMatch(c.name, q)}</span>${aliasHint}${desc}
+            <span class="autocomplete-name">${highlightMatch(c.name, q)}</span>${aliasHint}${descHtml}
         </div>`;
     }).join('');
     dd.classList.add('visible');
