@@ -42,11 +42,11 @@
 ./gradlew shadowJar
 ```
 
-输出文件：`build/libs/ZenithProxy-WebUI-1.4.0.jar`
+输出文件：`build/libs/ZenithProxy-WebUI-1.5.0.jar`
 
 ### 2. 安装插件
 
-将 `ZenithProxy-WebUI-1.4.0.jar` 复制到 ZenithProxy 的 `plugins/` 目录。
+将 `ZenithProxy-WebUI-1.5.0.jar` 复制到 ZenithProxy 的 `plugins/` 目录。
 
 ### 3. 配置文件
 
@@ -258,8 +258,8 @@ src/main/resources/
 
 ```bash
 # 同步修改 build.gradle.kts 与 zenithproxy.plugin.json 中的 version
-git commit -am "chore: release v1.4.0"
-git tag v1.4.0
+git commit -am "chore: release v1.5.0"
+git tag v1.5.0
 git push origin main --tags
 ```
 

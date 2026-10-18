@@ -63,8 +63,16 @@ public class AuthHandler {
             }
         }
 
-        // Check for static files (no /api/ prefix)
-        if (!path.startsWith("/api/")) {
+        // Static assets (no /api/ prefix) are public: the login page must load
+        // its CSS and JS before authenticating.
+        //
+        // The prefix test is case-insensitive on purpose. A case-sensitive
+        // startsWith("/api/") lets "/API/dashboard" slip past this branch into
+        // the static file handler, which answers with the SPA shell instead of
+        // rejecting the request. The routing switch is case-sensitive too, so
+        // such a path can never reach a real handler — but answering 401 keeps
+        // the contract that everything under /api/ needs credentials.
+        if (!path.regionMatches(true, 0, "/api/", 0, 5)) {
             return true;
         }
 

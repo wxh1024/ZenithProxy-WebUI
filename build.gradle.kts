@@ -4,7 +4,7 @@ plugins {
 }
 
 group = "com.zenith.webui"
-version = "1.4.0"
+version = "1.5.0"
 
 // ZenithProxy 由 maven.2b2t.vc 提供（仓库已在 settings.gradle.kts 配置）。
 // 格式为 <proxy 版本>+<MC 版本>，例如 3.7.3+1.21.4；也可用 1.21.4-SNAPSHOT 跟随快照。

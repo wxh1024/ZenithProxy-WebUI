@@ -43,11 +43,11 @@ or build it locally (requires JDK 21 and network access to `maven.2b2t.vc`):
 ./gradlew shadowJar
 ```
 
-Output: `build/libs/ZenithProxy-WebUI-1.4.0.jar`
+Output: `build/libs/ZenithProxy-WebUI-1.5.0.jar`
 
 ### 2. Install
 
-Copy `ZenithProxy-WebUI-1.4.0.jar` into the ZenithProxy `plugins/` directory.
+Copy `ZenithProxy-WebUI-1.5.0.jar` into the ZenithProxy `plugins/` directory.
 
 ### 3. Configuration
 
@@ -251,8 +251,8 @@ src/main/resources/
 
 ```bash
 # bump the version in BOTH build.gradle.kts and zenithproxy.plugin.json
-git commit -am "chore: release v1.4.0"
-git tag v1.4.0
+git commit -am "chore: release v1.5.0"
+git tag v1.5.0
 git push origin main --tags
 ```
 
