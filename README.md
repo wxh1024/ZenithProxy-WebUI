@@ -8,7 +8,9 @@
 [![Java](https://img.shields.io/badge/Java-21-ED8F03?logo=openjdk&logoColor=white)](https://adoptium.net/)
 [![Downloads](https://img.shields.io/github/downloads/wxh1024/ZenithProxy-WebUI/total)](https://github.com/wxh1024/ZenithProxy-WebUI/releases)
 
-基于浏览器的 ZenithProxy 管理面板，提供实时状态监控、配置管理、命令执行和日志查看功能。
+基于浏览器的 ZenithProxy 管理面板，提供实时状态监控、命令执行、白名单管理和日志查看功能。
+
+[English](README.en.md) | 简体中文
 
 > 本项目以 [GNU Affero 通用公共许可证 v3.0 或更高版本](LICENSE)（AGPL-3.0-or-later）开源。
 >
@@ -24,7 +26,8 @@
 - **日志查看器**: SSE 实时推送系统日志，支持日志级别颜色区分、导出
 - **玩家列表**: 查看当前连接的玩家（控制器/观察者），支持踢出操作
 - **白名单管理**: 启用/禁用白名单、添加/移除玩家、配置踢出消息、自动添加机器人账户
-- **日志翻译**: 常见英文日志消息自动翻译为中文
+- **国际化 (i18n)**: 自动识别浏览器语言，支持中文/英文一键切换；日志按访客语言翻译
+- **模块化前端**: 原生 ES 模块拆分，无构建步骤
 - **用户认证**: Cookie 认证 + 速率限制，首次启动自动生成随机密码
 
 ## 安装与启用
@@ -53,6 +56,7 @@
 {
   "enabled": true,
   "port": 8080,
+  "language": "auto",
   "auth": {
     "enabled": true,
     "username": "admin",
@@ -83,6 +87,7 @@ http://localhost:8080
 |------|--------|------|
 | `enabled` | true | 是否在插件加载时自动启动 Web UI |
 | `port` | 8080 | HTTP 服务器端口 |
+| `language` | auto | 默认界面语言：`auto`（跟随浏览器）、`zh` 或 `en` |
 | `auth.enabled` | true | 是否启用登录认证 |
 | `auth.username` | admin | 登录用户名 |
 | `auth.password` | 随机生成 | 登录密码（首次启动自动生成并输出到日志） |
@@ -105,6 +110,19 @@ http://localhost:8080
 | `/api/whitelist` | POST | 是 | 白名单管理 `{"action": "toggle/add/remove/updateConfig", ...}` |
 
 > `/api/status`, `/api/players`, `/api/queue`, `/api/system`, `/api/latency` 等独立端点已合并到 `/api/dashboard`（聚合返回）。前端不依赖这些独立端点。
+
+## 国际化
+
+仪表板与登录页均支持中英双语，语言优先级：
+
+1. `?lang=en` / `?lang=zh` 查询参数（便于分享指定语言的链接）
+2. 界面内的语言切换器（保存在 `localStorage`）
+3. `config.json` 中的 `language`（当其不为 `auto` 时）
+4. `navigator.languages` —— 浏览器自身的语言偏好
+5. 最终回退到 `zh`
+
+日志按访客语言翻译：服务端推送原始英文文本，浏览器按所选语言渲染，
+因此英文访客看到的是可读的英文，而不是被强制翻译的中文。
 
 ## 命令
 
@@ -135,7 +153,7 @@ http://localhost:8080
 ## 技术栈
 
 - **后端**: Java 21, Netty NIO (零拷贝文件传输), Gson, Logback
-- **前端**: 原生 HTML/CSS/JavaScript（无框架）, Chart.js
+- **前端**: 原生 HTML/CSS/ES 模块（无框架、无构建步骤）, Chart.js
 - **实时传输**: SSE (Server-Sent Events)
 - **构建**: Gradle + Shadow JAR
 
@@ -205,10 +223,30 @@ src/main/resources/
   web/
     index.html              # 主前端页面
     login.html              # 登录页面
-    app.js                  # 前端逻辑
     styles.css              # 样式（Catppuccin Macchiato 配色）
+    js/                     # 前端 ES 模块（见下表）
   zenithproxy.plugin.json   # 插件元数据
 ```
+
+## 前端模块划分
+
+| 模块 | 职责 |
+|------|------|
+| `js/i18n.js` | 翻译表、语言解析、`t()`、日志翻译 |
+| `js/api.js` | fetch 封装、SSE（指数退避重连）、会话辅助 |
+| `js/state.js` | 共享可变状态（日志、历史、连接状态、限额） |
+| `js/dashboard.js` | 状态卡片、队列渲染、四个 Chart.js 图表 |
+| `js/commands.js` | 命令发现与模糊补全打分 |
+| `js/terminal.js` | 日志流、滚动缓冲、命令输入、导出 |
+| `js/whitelist.js` | 白名单增删改查 |
+| `js/server.js` | 连接/断开/重连/关闭磁贴 |
+| `js/util.js` | HTML 转义、Toast、延迟着色 |
+| `js/app.js` | 入口：认证、导航、语言切换、模块装配 |
+| `js/login.js` | 登录页控制器 |
+
+模块之间不循环引用：共享数据统一放在 `state.js` 中按实时绑定导入。
+静态资源优先从 classpath（`/web/`）读取，再回退到 `plugins/webui/web/`，
+因此整个 `web/` 目录都可在运行时被覆盖。
 
 ## CI 与发布
 

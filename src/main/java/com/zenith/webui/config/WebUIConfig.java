@@ -5,6 +5,13 @@ public class WebUIConfig {
     /** Whether the HTTP server starts automatically on plugin load. */
     public boolean enabled = true;
 
+    /**
+     * Default UI language: {@code "auto"} (follow the browser), {@code "zh"} or {@code "en"}.
+     * The frontend still lets each visitor override it via the in-page language switcher;
+     * this value is only the fallback used before the browser preference is known.
+     */
+    public String language = "auto";
+
     // Authentication settings
     public AuthConfig auth = new AuthConfig();
 

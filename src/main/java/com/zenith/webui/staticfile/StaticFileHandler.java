@@ -59,6 +59,11 @@ public class StaticFileHandler {
 
         if (content != null) {
             HttpHelper.sendBytes(ctx, content, HttpHelper.getContentType(path));
+        } else if (looksLikeAsset(path)) {
+            // A missing .js/.css/.png must 404 rather than silently return the
+            // SPA HTML — the browser would fail on the MIME type with a far
+            // more confusing error.
+            HttpHelper.sendNotFound(ctx);
         } else {
             // SPA fallback
             content = loadResourceCached("/index.html");
@@ -71,6 +76,13 @@ public class StaticFileHandler {
                 HttpHelper.sendNotFound(ctx);
             }
         }
+    }
+
+    /** True for extension-bearing paths, i.e. real files rather than SPA routes. */
+    private static boolean looksLikeAsset(String path) {
+        int slash = path.lastIndexOf('/');
+        int dot = path.lastIndexOf('.');
+        return dot > slash && dot > 0;
     }
 
     /**

@@ -14,6 +14,11 @@ import java.util.regex.Pattern;
  * Pattern each time).
  *
  * Keys are sorted by length descending so longer matches take priority.
+ *
+ * <p><b>Note:</b> translation now happens on the frontend ({@code web/js/i18n.js})
+ * so that English visitors see the original English log lines. This class is kept
+ * as the single source of truth for the phrase table and is served to the browser
+ * through {@code GET /api/i18n/log-phrases}.
  */
 public final class LogTranslator {
     private LogTranslator() {}
@@ -63,6 +68,10 @@ public final class LogTranslator {
         LOG_TRANSLATIONS.put("Server switch", "服务器切换");
         LOG_TRANSLATIONS.put("Error", "错误");
         LOG_TRANSLATIONS.put("Warning", "警告");
+        LOG_TRANSLATIONS.put("Entered queue", "已进入队列");
+        LOG_TRANSLATIONS.put("Entering server", "正在进入服务器");
+        LOG_TRANSLATIONS.put("Disconnected", "已断开连接");
+        LOG_TRANSLATIONS.put("Connecting", "正在连接");
 
         SORTED_TRANSLATIONS = new ArrayList<>(LOG_TRANSLATIONS.entrySet());
         SORTED_TRANSLATIONS.sort((a, b) -> Integer.compare(b.getKey().length(), a.getKey().length()));
@@ -79,10 +88,18 @@ public final class LogTranslator {
     /**
      * One-pass translation: single regex scan replaces all matching substrings.
      * Avoids the 35x Pattern.compile + full-scan overhead of the old per-key loop.
+     *
+     * <p>Only used by the server-side console output; the WebUI frontend applies the
+     * same table client-side so English visitors get the untranslated original.
      */
     public static String translate(String message) {
         if (message == null || message.isEmpty()) return message;
         Matcher m = TRANSLATION_PATTERN.matcher(message);
         return m.replaceAll(match -> LOG_TRANSLATIONS.get(match.group()));
+    }
+
+    /** Raw {@code English -> Chinese} phrase table, longest key first. */
+    public static Map<String, String> phraseTable() {
+        return LOG_TRANSLATIONS;
     }
 }

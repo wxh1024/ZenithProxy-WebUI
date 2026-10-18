@@ -4,6 +4,32 @@
 
 ## [未发布]
 
+### 新增
+
+- **国际化 (i18n) + 英文支持**：仪表板与登录页完整支持中文 / 英文。
+  - 语言优先级：`?lang=` 查询参数 → 界面内切换器（`localStorage`）→ `config.json`
+    的 `language` → `navigator.languages` → `zh`
+  - 新增 `config.json` 的 `language` 字段（`auto` / `zh` / `en`，默认 `auto`）
+  - 新增公开端点 `GET /api/i18n`，返回默认语言、支持语言与日志短语表
+  - 侧边栏与登录页新增语言切换下拉框
+  - HTML 改用 `data-i18n` / `data-i18n-placeholder` / `data-i18n-title` 绑定，
+    移除原先中英并排的 `.bilingual` 标记
+- **`README.en.md`**：完整英文文档（安装、配置、API、模块架构、故障排除、许可证），
+  README 顶部互相链接
+
+### 变更
+
+- **前端拆分为原生 ES 模块**（无构建步骤）：`web/app.js`（1075 行）拆为 `web/js/` 下
+  11 个模块 —— `i18n` / `api` / `state` / `dashboard` / `commands` / `terminal` /
+  `whitelist` / `server` / `util` / `app` / `login`。模块间不循环引用，共享状态集中在
+  `state.js`。
+- **日志翻译从服务端移到客户端**：服务端不再把英文日志翻成中文后再推送，而是下发原始
+  英文文本，由 `js/i18n.js` 按访客语言翻译。英文访客因此能看到可读的英文日志，而不是
+  被强制翻译的中文。`LogTranslator` 保留为短语表的唯一来源，通过 `/api/i18n` 下发。
+- 移除全部 `中/ EN` 双语拼接字符串（前端通知、事件广播），改为按语言取值。
+- 静态文件服务：带扩展名的路径（`.js` / `.css` / `.png`）未命中时返回 404，
+  不再回退到 `index.html` —— 否则缺失的 JS 模块会以 MIME 错误这种更难排查的形式失败。
+
 ### 许可证
 
 - 项目改为 **AGPL-3.0-or-later**（GNU Affero 通用公共许可证 v3 或更高版本）开源，

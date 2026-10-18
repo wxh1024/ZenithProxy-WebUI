@@ -20,7 +20,6 @@ import com.zenith.webui.command.WebUICommand;
 import com.zenith.webui.config.ConfigManager;
 import com.zenith.webui.http.HttpHelper;
 import com.zenith.webui.terminal.LogEntry;
-import com.zenith.webui.terminal.LogTranslator;
 import com.zenith.webui.terminal.WebUILogHandler;
 import com.zenith.webui.queue.QueueParser;
 import com.zenith.webui.server.WebUIChannelHandler;
@@ -134,6 +133,7 @@ public class WebUIPlugin implements ZenithProxyPlugin {
             dashboardHandler,
             new LogStreamHandler(),
             new WhitelistHandler(),
+            new I18nHandler(configManager.getConfig()),
             new StaticFileHandler(pluginDir));
 
         // Server
@@ -278,24 +278,22 @@ public class WebUIPlugin implements ZenithProxyPlugin {
             catch (Exception ignored) {}
         });
         EVENT_BUS.subscribe(this, ClientConnectEvent.class, e ->
-            broadcastLog("INFO", "Client", "正在连接服务器... / Connecting to server..."));
+            broadcastLog("INFO", "Client", "Connecting to server..."));
         EVENT_BUS.subscribe(this, ClientOnlineEvent.class, e -> {
             QueueParser.reset();
-            broadcastLog("INFO", "Client", "已上线 / Now online");
+            broadcastLog("INFO", "Client", "Now online");
         });
         EVENT_BUS.subscribe(this, ClientDisconnectEvent.class, e -> {
             QueueParser.reset();
-            broadcastLog("WARN", "Client",
-                "已断开: " + e.reason() + " / Disconnected: " + e.reason());
+            broadcastLog("WARN", "Client", "Disconnected: " + e.reason());
         });
         EVENT_BUS.subscribe(this, QueueStartEvent.class, e ->
-            broadcastLog("INFO", "Queue", "已进入队列 / Entered queue"));
+            broadcastLog("INFO", "Queue", "Entered queue"));
         EVENT_BUS.subscribe(this, QueuePositionUpdateEvent.class, e ->
-            broadcastLog("INFO", "Queue",
-                "队列位置: " + e.position() + " / Queue position: " + e.position()));
+            broadcastLog("INFO", "Queue", "Queue position: " + e.position()));
         EVENT_BUS.subscribe(this, QueueCompleteEvent.class, e -> {
             QueueParser.reset();
-            broadcastLog("INFO", "Queue", "队列完成，已进入服务器 / Queue complete, entering server");
+            broadcastLog("INFO", "Queue", "Queue complete, entering server");
         });
     }
 
@@ -305,8 +303,10 @@ public class WebUIPlugin implements ZenithProxyPlugin {
 
     /** Called by {@link WebUILogHandler} and event subscribers. */
     public void broadcastLog(String level, String logger, String message) {
+        // Messages stay in their original English form; the frontend translates
+        // them per visitor language (see web/js/i18n.js).
         LogEntry entry = new LogEntry(
-            level, logger, LogTranslator.translate(message),
+            level, logger, message,
             System.currentTimeMillis(), logPollCounter.getAndIncrement());
         // Gson produces the SSE payload — one serialization serves every client.
         String sseFrame = HttpHelper.sseFrame(entry);

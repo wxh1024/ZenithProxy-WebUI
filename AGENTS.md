@@ -6,16 +6,26 @@ A ZenithProxy plugin providing a browser-based management dashboard. Java backen
 
 ## Build
 
-```bash
-./gradlew build          # compiles + shadow JAR
-./gradlew shadowJar      # fat JAR only (output: build/libs/ZenithProxy-WebUI-1.4.0.jar)
-```
+> **Rule: never run a local Gradle build.** Do not invoke `./gradlew build`,
+> `./gradlew shadowJar`, `./gradlew compileJava` or any other Gradle task to
+> verify a change — just commit and push, and let GitHub Actions build.
+> Local builds waste minutes on dependency resolution and provide no signal the
+> CI run does not already give.
 
-Requires **Java 21** (set in `build.gradle.kts` toolchain) and network access to
-`maven.2b2t.vc` for the ZenithProxy dependency. No test suite exists.
+```bash
+git add -A && git commit -m "..." && git push origin main
+# then check the run: gh run list / gh run watch
+```
 
 CI lives in `.github/workflows/build.yml`: every push/PR builds the fat JAR and uploads it as
 a workflow artifact; pushing a `v*` tag also publishes a GitHub Release with the JAR attached.
+That pipeline is the only build/verification step — **there is no local build and no test suite.**
+
+Cheap local checks that do NOT involve Gradle are still fine: `node --check` on frontend
+modules, reading files, `git` operations.
+
+Requires **Java 21** (set in `build.gradle.kts` toolchain) and network access to
+`maven.2b2t.vc` for the ZenithProxy dependency — both satisfied by the CI runner.
 
 ## Project Structure
 
@@ -23,9 +33,10 @@ a workflow artifact; pushing a `v*` tag also publishes a GitHub Release with the
 src/main/java/com/zenith/webui/
   WebUIPlugin.java          # Plugin entrypoint, lifecycle, SSE broadcast, log buffer
   TitlePacketHandler.java   # Title packet handler
-  api/                      # /api handlers: commands, dashboard, log stream, whitelist
+  api/                      # /api handlers: commands, dashboard, i18n, log stream, whitelist
     DashboardHandler.java   # Aggregated dashboard payload (POJO → Gson)
     DashboardData.java      # Dashboard DTO — field names are the frontend contract
+    I18nHandler.java        # GET /api/i18n — default language + log phrase table
   auth/                     # Token auth: filter, manager, login/logout controller
   authbypass/               # Offline-auth bypass packet handlers (hybrid-auth servers)
   command/                  # /webui enable|disable|status
@@ -34,11 +45,22 @@ src/main/java/com/zenith/webui/
   queue/QueueParser.java    # 3c3u.org / 2b2t.org queue-position packet parser
   server/                   # Netty bootstrap + request routing
   staticfile/               # Static file serving with bounded LRU cache
-  terminal/                 # Log translation, Logback appender, LogEntry DTO
+  terminal/                 # Log phrase table, Logback appender, LogEntry DTO
 src/main/resources/
   web/
-    index.html, app.js, styles.css   # Frontend (vanilla JS, no build step)
-    login.html                       # Authentication login page
+    index.html, login.html, styles.css   # Pages + styles (Catppuccin Macchiato)
+    js/                                 # Frontend ES modules (no build step)
+      i18n.js       # translation tables, language resolution, t(), log translation
+      api.js        # fetch wrapper, SSE with exponential-backoff reconnect, session
+      state.js      # shared mutable state + LIMITS (breaks import cycles)
+      dashboard.js  # status cards, queue rendering, Chart.js charts
+      commands.js   # command discovery + fuzzy autocomplete scoring
+      terminal.js   # log stream, scrollback, command input, export
+      whitelist.js  # whitelist CRUD
+      server.js     # connect/disconnect/reconnect/shutdown tiles
+      util.js       # HTML escaping, toasts, ping colouring
+      app.js        # entry point: auth gate, navigation, language switcher, wiring
+      login.js      # login page controller
   zenithproxy.plugin.json            # Plugin metadata (entrypoint class, id, version)
 ```
 
@@ -46,13 +68,16 @@ src/main/resources/
 
 ```
 plugins/webui/
-  config.json               # Plugin-specific configuration (port, auth, enabled)
+  config.json               # Plugin-specific configuration (port, language, auth, enabled)
   web/                      # Optional: custom frontend files (overrides classpath)
 ```
 
 ## Key Facts for Agents
 
-- **No test suite, no linter.** CI (`.github/workflows/build.yml`) is the only verification step; it compiles, checks the version pair (build.gradle.kts ↔ plugin.json) and uploads the JAR.
+- **No test suite, no linter, no local build.** CI (`.github/workflows/build.yml`) is the only verification step; it compiles, checks the version pair (build.gradle.kts ↔ plugin.json) and uploads the JAR. Commit + push, then read the CI result — never run Gradle locally.
+- **Frontend is ES modules, no bundler**: `index.html` loads `js/app.js` via `<script type="module">`. Modules must not import each other cyclically — shared mutable values live in `state.js` and are imported as live bindings. Inline `onclick=` handlers in the HTML resolve against the `Object.assign(window, {...})` block in `js/app.js`.
+- **i18n**: `js/i18n.js` owns all UI strings. Language resolution order is `?lang=` query → localStorage → `config.json` `language` → `navigator.languages` → `zh`. HTML binds through `data-i18n` / `data-i18n-placeholder` / `data-i18n-title`; `applyTranslations()` re-renders the page after a switch, so a missing key degrades to the Chinese original rather than an empty label.
+- **Log translation moved to the client**: the server streams raw English log messages; `js/i18n.js` translates them per visitor using the phrase table served by `GET /api/i18n` (sourced from `LogTranslator.phraseTable()`). Longest phrase first, so "Disconnected from server" wins over "Disconnected".
 - **External dependency**: ZenithProxy is resolved from Maven — `com.zenith:ZenithProxy:<proxy>+<mc>`
   (e.g. `3.7.3+1.21.4`) as `compileOnly`. Repositories (`maven.2b2t.vc/releases`, `/remote`) are declared
   in `settings.gradle.kts`; the version lives in `build.gradle.kts` as `zenithProxyVersion`.
@@ -64,7 +89,7 @@ plugins/webui/
 - **SSE (Server-Sent Events)**: `/api/logs/stream` and `/api/dashboard/stream`. Uses Netty channels with `CopyOnWriteArrayList` for thread-safe client management.
 - **CORS**: All response helpers set `Access-Control-Allow-Origin: *`. Preflight also allows `Authorization`.
 - **Independent config**: `plugins/webui/config.json`, separate from the main ZenithProxy config. On first run a random password is generated and logged. `enabled: false` skips auto-start; `/webui enable` still works.
-- **Log translation**: Common English log messages are auto-translated to Chinese before pushing to SSE. Keys are sorted by length descending to prevent partial matches.
+- **Static file 404**: extension-bearing paths that miss both the classpath and the plugin dir return 404 instead of falling back to `index.html` — otherwise a missing `.js` module fails with a confusing MIME error rather than a clear 404.
 - **Whitelist management**: Full CRUD API at `/api/whitelist`. Directly modifies the main ZenithProxy CONFIG object (persistence is handled by ZenithProxy itself).
 - **Thread safety**: `WebUIPlugin.instance` is `volatile`. Logback appender uses a local snapshot to avoid TOCTOU after `stop()`. SSE client lists use `CopyOnWriteArrayList`. Log buffer uses `ConcurrentLinkedDeque<LogEntry>` plus an approximate size counter.
 - **start() idempotency**: `start()` returns early when the server is already running, so repeated `/webui enable` cannot register duplicate packet codecs, log appenders or event subscribers. Returns `boolean` for callers to detect failure.
@@ -80,6 +105,7 @@ The plugin uses its own configuration file at `plugins/webui/config.json`:
 {
   "enabled": true,
   "port": 8080,
+  "language": "auto",
   "auth": {
     "enabled": true,
     "username": "admin",
@@ -90,6 +116,7 @@ The plugin uses its own configuration file at `plugins/webui/config.json`:
 
 - `enabled`: Whether the WebUI server starts automatically on plugin load.
 - `port`: HTTP server listen port.
+- `language`: default UI language — `auto` (follow the browser), `zh` or `en`. The in-page switcher overrides it per visitor.
 - `auth.enabled`: Enable/disable authentication (login page + token validation).
 - `auth.username` / `auth.password`: Login credentials. On first run, a random 16-character password is generated and logged.
 
@@ -99,6 +126,7 @@ To disable authentication, set `auth.enabled` to `false` in config.json.
 
 | Endpoint | Method | Auth | Description |
 |----------|--------|------|-------------|
+| `/api/i18n` | GET | No | Default language, supported languages, English→Chinese log phrase table |
 | `/api/auth/login` | POST | No | Login with `{username, password}` → sets HttpOnly cookie |
 | `/api/auth/logout` | POST | No | Clears auth cookie |
 | `/api/auth/status` | GET | No | Returns `{authenticated, username}` (always accessible, reports if logged in) |

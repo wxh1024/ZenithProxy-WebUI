@@ -25,6 +25,7 @@ public class WebUIChannelHandler extends SimpleChannelInboundHandler<FullHttpReq
     private final DashboardHandler dashboardHandler;
     private final LogStreamHandler logStreamHandler;
     private final WhitelistHandler whitelistHandler;
+    private final I18nHandler i18nHandler;
     private final StaticFileHandler staticFileHandler;
 
     public WebUIChannelHandler(
@@ -34,6 +35,7 @@ public class WebUIChannelHandler extends SimpleChannelInboundHandler<FullHttpReq
             DashboardHandler dashboardHandler,
             LogStreamHandler logStreamHandler,
             WhitelistHandler whitelistHandler,
+            I18nHandler i18nHandler,
             StaticFileHandler staticFileHandler) {
         this.authHandler = authHandler;
         this.authController = authController;
@@ -41,6 +43,7 @@ public class WebUIChannelHandler extends SimpleChannelInboundHandler<FullHttpReq
         this.dashboardHandler = dashboardHandler;
         this.logStreamHandler = logStreamHandler;
         this.whitelistHandler = whitelistHandler;
+        this.i18nHandler = i18nHandler;
         this.staticFileHandler = staticFileHandler;
     }
 
@@ -67,6 +70,11 @@ public class WebUIChannelHandler extends SimpleChannelInboundHandler<FullHttpReq
         }
         if (path.equals("/api/auth/status")) {
             authController.handleStatus(ctx, req);
+            return;
+        }
+        // i18n bootstrap is public: the login page needs it before authentication
+        if (path.equals("/api/i18n") && HttpMethod.GET.equals(method)) {
+            i18nHandler.handleI18n(ctx);
             return;
         }
 
