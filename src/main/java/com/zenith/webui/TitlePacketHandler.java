@@ -15,7 +15,8 @@ public class TitlePacketHandler implements ClientEventLoopPacketHandler<Clientbo
             if (text != null && !text.isEmpty()) {
                 WebUIPlugin.pushTitle(text);
             }
-        } catch (Exception ignored) {}
+        } catch (Exception ignored) {
+        }
         return true;
     }
 }

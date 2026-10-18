@@ -11,7 +11,8 @@ public final class AuthBypasserState {
     private static volatile WebUIConfig.AuthBypasserConfig config;
     private static volatile boolean enabled;
 
-    private AuthBypasserState() {}
+    private AuthBypasserState() {
+    }
 
     public static WebUIConfig.AuthBypasserConfig getConfig() {
         return enabled ? config : null;

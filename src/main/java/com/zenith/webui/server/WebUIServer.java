@@ -17,13 +17,11 @@ import net.kyori.adventure.text.logger.slf4j.ComponentLogger;
  */
 public class WebUIServer {
     private static final ComponentLogger LOG = ComponentLogger.logger("WebUI");
-
+    private final int port;
+    private final WebUIChannelHandler channelHandler;
     private EventLoopGroup bossGroup;
     private EventLoopGroup workerGroup;
     private Channel serverChannel;
-
-    private final int port;
-    private final WebUIChannelHandler channelHandler;
 
     public WebUIServer(int port, WebUIChannelHandler channelHandler) {
         this.port = port;
@@ -43,20 +41,20 @@ public class WebUIServer {
 
             ServerBootstrap b = new ServerBootstrap();
             b.group(bossGroup, workerGroup)
-             .channel(NioServerSocketChannel.class)
-             .childHandler(new ChannelInitializer<SocketChannel>() {
-                 @Override
-                 protected void initChannel(SocketChannel ch) {
-                     ChannelPipeline p = ch.pipeline();
-                     p.addLast(new HttpServerCodec());
-                     p.addLast(new HttpObjectAggregator(65536));
-                     p.addLast(new ChunkedWriteHandler());
-                     p.addLast(channelHandler);
-                 }
-             })
-             .option(ChannelOption.SO_BACKLOG, 128)
-             .childOption(ChannelOption.SO_KEEPALIVE, true)
-             .childOption(ChannelOption.TCP_NODELAY, true);
+                    .channel(NioServerSocketChannel.class)
+                    .childHandler(new ChannelInitializer<SocketChannel>() {
+                        @Override
+                        protected void initChannel(SocketChannel ch) {
+                            ChannelPipeline p = ch.pipeline();
+                            p.addLast(new HttpServerCodec());
+                            p.addLast(new HttpObjectAggregator(65536));
+                            p.addLast(new ChunkedWriteHandler());
+                            p.addLast(channelHandler);
+                        }
+                    })
+                    .option(ChannelOption.SO_BACKLOG, 128)
+                    .childOption(ChannelOption.SO_KEEPALIVE, true)
+                    .childOption(ChannelOption.TCP_NODELAY, true);
 
             serverChannel = b.bind(port).sync().channel();
             LOG.info("Netty NIO server started on port {}", port);
@@ -89,26 +87,41 @@ public class WebUIServer {
     private void cleanupStaleResources() {
         if (bossGroup != null) {
             bossGroup.shutdownGracefully();
-            try { bossGroup.awaitTermination(5, java.util.concurrent.TimeUnit.SECONDS); } catch (Exception ignored) {}
+            try {
+                bossGroup.awaitTermination(5, java.util.concurrent.TimeUnit.SECONDS);
+            } catch (Exception ignored) {
+            }
             bossGroup = null;
         }
         if (workerGroup != null) {
             workerGroup.shutdownGracefully();
-            try { workerGroup.awaitTermination(5, java.util.concurrent.TimeUnit.SECONDS); } catch (Exception ignored) {}
+            try {
+                workerGroup.awaitTermination(5, java.util.concurrent.TimeUnit.SECONDS);
+            } catch (Exception ignored) {
+            }
             workerGroup = null;
         }
     }
 
     private void cleanup() {
-        if (serverChannel != null) { serverChannel.close(); serverChannel = null; }
+        if (serverChannel != null) {
+            serverChannel.close();
+            serverChannel = null;
+        }
         if (workerGroup != null) {
             workerGroup.shutdownGracefully();
-            try { workerGroup.awaitTermination(5, java.util.concurrent.TimeUnit.SECONDS); } catch (Exception ignored) {}
+            try {
+                workerGroup.awaitTermination(5, java.util.concurrent.TimeUnit.SECONDS);
+            } catch (Exception ignored) {
+            }
             workerGroup = null;
         }
         if (bossGroup != null) {
             bossGroup.shutdownGracefully();
-            try { bossGroup.awaitTermination(5, java.util.concurrent.TimeUnit.SECONDS); } catch (Exception ignored) {}
+            try {
+                bossGroup.awaitTermination(5, java.util.concurrent.TimeUnit.SECONDS);
+            } catch (Exception ignored) {
+            }
             bossGroup = null;
         }
     }

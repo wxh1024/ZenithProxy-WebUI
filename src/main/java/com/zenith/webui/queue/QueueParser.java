@@ -10,7 +10,7 @@ import static com.zenith.Globals.*;
 /**
  * 3c3u.org 服务器队列解析器
  * 拦截 Subtitle 包，解析格式: &lt;onlinePlayers&gt; | Position in queue: &lt;position&gt;
- *
+ * <p>
  * 队列完成检测：排队完成时服务器发送 ClearTitles 包清除字幕。
  */
 public class QueueParser implements ClientEventLoopPacketHandler<ClientboundSetSubtitleTextPacket, ClientSession> {
@@ -21,6 +21,16 @@ public class QueueParser implements ClientEventLoopPacketHandler<ClientboundSetS
     public static volatile int onlinePlayers = 0;
     public static volatile int positionInQueue = -1;
 
+    public static boolean is3cQueue() {
+        return positionInQueue > 0;
+    }
+
+    public static void reset() {
+        queuePos = "";
+        onlinePlayers = 0;
+        positionInQueue = -1;
+    }
+
     @Override
     public boolean applyAsync(ClientboundSetSubtitleTextPacket packet, ClientSession session) {
         String serverAddress = CONFIG.client.server.address;
@@ -30,18 +40,9 @@ public class QueueParser implements ClientEventLoopPacketHandler<ClientboundSetS
 
         try {
             parse3cQueuePos(packet);
-        } catch (Exception ignored) {}
+        } catch (Exception ignored) {
+        }
         return true;
-    }
-
-    public static boolean is3cQueue() {
-        return positionInQueue > 0;
-    }
-
-    public static void reset() {
-        queuePos = "";
-        onlinePlayers = 0;
-        positionInQueue = -1;
     }
 
     private void parse3cQueuePos(ClientboundSetSubtitleTextPacket packet) {

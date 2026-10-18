@@ -71,22 +71,23 @@ import static com.zenith.Globals.*;
  * </pre>
  */
 public class WebUIPlugin implements ZenithProxyPlugin {
-    private static final ComponentLogger LOG = ComponentLogger.logger("WebUI");
-    private static final String PLUGIN_ID = "webui";
-
-    // ── Singleton instance ────────────────────────────────────
-    public static volatile WebUIPlugin instance;
-
     // ── Shared mutable state (accessed cross-package) ─────────
     public static final int LOG_BUFFER_MAX = 500;
     public static final ConcurrentLinkedDeque<LogEntry> logBuffer = new ConcurrentLinkedDeque<>();
-    static final AtomicLong logPollCounter = new AtomicLong(0);
-    /** Approximate log buffer size counter — avoids O(n) {@code ConcurrentLinkedDeque.size()}. */
+    /**
+     * Approximate log buffer size counter — avoids O(n) {@code ConcurrentLinkedDeque.size()}.
+     */
     public static final AtomicInteger logBufferApproxSize = new AtomicInteger(0);
-
     public static final List<Channel> sseClients = new CopyOnWriteArrayList<>();
     public static final List<Channel> dashboardSseClients = new CopyOnWriteArrayList<>();
-
+    static final AtomicLong logPollCounter = new AtomicLong(0);
+    private static final ComponentLogger LOG = ComponentLogger.logger("WebUI");
+    private static final String PLUGIN_ID = "webui";
+    // ── Adventure serialiser ──────────────────────────────────
+    private static final LegacyComponentSerializer LEGACY_SERIALIZER =
+            LegacyComponentSerializer.legacySection();
+    // ── Singleton instance ────────────────────────────────────
+    public static volatile WebUIPlugin instance;
     // ── Component graph ───────────────────────────────────────
     private ConfigManager configManager;
     private AuthManager authManager;
@@ -96,10 +97,6 @@ public class WebUIPlugin implements ZenithProxyPlugin {
     private WebUIServer server;
     private WebUILogHandler logHandler;
 
-    // ── Adventure serialiser ──────────────────────────────────
-    private static final LegacyComponentSerializer LEGACY_SERIALIZER =
-        LegacyComponentSerializer.legacySection();
-
     private static String componentToPlainText(net.kyori.adventure.text.Component c) {
         return c == null ? "" : LEGACY_SERIALIZER.serialize(c);
     }
@@ -107,6 +104,52 @@ public class WebUIPlugin implements ZenithProxyPlugin {
     // ═══════════════════════════════════════════════════════════
     //  Plugin lifecycle
     // ═══════════════════════════════════════════════════════════
+
+    /**
+     * Push a title packet to log-stream SSE clients. Called by {@link TitlePacketHandler}.
+     */
+    public static void pushTitle(String text) {
+        if (text == null || text.isEmpty()) return;
+        JsonObject payload = new JsonObject();
+        payload.addProperty("type", "title");
+        payload.addProperty("text", text);
+        broadcastSSE(sseClients, HttpHelper.sseFrame(payload));
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    //  Start / Stop  (public — also driven by /webui command)
+    // ═══════════════════════════════════════════════════════════
+
+    /**
+     * Write a pre-built SSE data frame to every active channel in {@code clients}.
+     * Collects dead channels for batch removal — avoids CopyOnWriteArrayList.removeIf
+     * which copies the entire array even when nothing is removed.
+     *
+     * @param sseFrame pre-built SSE frame string (format: "data: {...}\n\n")
+     */
+    public static void broadcastSSE(List<Channel> clients, String sseFrame) {
+        ByteBuf template = Unpooled.copiedBuffer(sseFrame, CharsetUtil.UTF_8);
+        List<Channel> dead = new ArrayList<>(2);
+        for (Channel ch : clients) {
+            if (!ch.isActive()) {
+                dead.add(ch);
+                continue;
+            }
+            try {
+                ch.writeAndFlush(new DefaultHttpContent(template.retainedDuplicate()))
+                        .addListener(f -> {
+                            if (!f.isSuccess()) ch.close();
+                        });
+            } catch (Exception e) {
+                ch.close();
+                dead.add(ch);
+            }
+        }
+        if (!dead.isEmpty()) {
+            clients.removeAll(dead);
+        }
+        template.release();
+    }
 
     @Override
     public void onLoad(PluginAPI api) {
@@ -128,13 +171,13 @@ public class WebUIPlugin implements ZenithProxyPlugin {
         // Handlers
         dashboardHandler = new DashboardHandler();
         WebUIChannelHandler channelHandler = new WebUIChannelHandler(
-            authHandler, authController,
-            new CommandHandler(),
-            dashboardHandler,
-            new LogStreamHandler(),
-            new WhitelistHandler(),
-            new I18nHandler(configManager.getConfig()),
-            new StaticFileHandler(pluginDir));
+                authHandler, authController,
+                new CommandHandler(),
+                dashboardHandler,
+                new LogStreamHandler(),
+                new WhitelistHandler(),
+                new I18nHandler(configManager.getConfig()),
+                new StaticFileHandler(pluginDir));
 
         // Server
         int port = configManager.getConfig().port;
@@ -142,23 +185,25 @@ public class WebUIPlugin implements ZenithProxyPlugin {
 
         // Command
         api.registerCommand(new WebUICommand(
-            this::start, this::stop, () -> server != null && server.isRunning(), port));
+                this::start, this::stop, () -> server != null && server.isRunning(), port));
 
         // Go
         if (configManager.getConfig().enabled) {
             boolean ok = start();
             LOG.info("WebUI plugin loaded!{}",
-                ok ? " Access at http://localhost:" + port : " (server failed to start, check logs)");
+                    ok ? " Access at http://localhost:" + port : " (server failed to start, check logs)");
         } else {
             LOG.info("WebUI plugin loaded but disabled in plugins/webui/config.json — use /webui enable to start");
         }
     }
 
     // ═══════════════════════════════════════════════════════════
-    //  Start / Stop  (public — also driven by /webui command)
+    //  Startup helpers
     // ═══════════════════════════════════════════════════════════
 
-    /** Full start: server → packet handlers → log appender → events → dashboard stream. */
+    /**
+     * Full start: server → packet handlers → log appender → events → dashboard stream.
+     */
     public boolean start() {
         instance = this;
         // Idempotent: re-running would register duplicate packet codecs, log appenders
@@ -174,7 +219,9 @@ public class WebUIPlugin implements ZenithProxyPlugin {
         return true;
     }
 
-    /** Stop the server and detach every runtime hook. Safe to call repeatedly. */
+    /**
+     * Stop the server and detach every runtime hook. Safe to call repeatedly.
+     */
     public void stop() {
         EVENT_BUS.unsubscribe(this);
         if (dashboardHandler != null) dashboardHandler.stopStream();
@@ -185,31 +232,31 @@ public class WebUIPlugin implements ZenithProxyPlugin {
         instance = null;
     }
 
-    // ═══════════════════════════════════════════════════════════
-    //  Startup helpers
-    // ═══════════════════════════════════════════════════════════
-
     private void registerPacketHandlers() {
         try {
             var c = PacketHandlerCodec.clientBuilder()
-                .setId("webui-title-handler").setPriority(100)
-                .allStates(PacketHandlerStateCodec.<ClientSession>clientBuilder()
-                    .inbound(ClientboundSetTitleTextPacket.class, new TitlePacketHandler()).build())
-                .build();
+                    .setId("webui-title-handler").setPriority(100)
+                    .allStates(PacketHandlerStateCodec.<ClientSession>clientBuilder()
+                            .inbound(ClientboundSetTitleTextPacket.class, new TitlePacketHandler()).build())
+                    .build();
             PacketCodecRegistries.CLIENT_REGISTRY.register(c);
             LOG.info("Title packet handler registered");
-        } catch (Exception e) { LOG.warn("Failed to register Title packet handler", e); }
+        } catch (Exception e) {
+            LOG.warn("Failed to register Title packet handler", e);
+        }
 
         try {
             var c = PacketHandlerCodec.clientBuilder()
-                .setId("webui-queue-parser").setPriority(100)
-                .allStates(PacketHandlerStateCodec.<ClientSession>clientBuilder()
-                    .inbound(ClientboundSetSubtitleTextPacket.class, new QueueParser())
-                    .inbound(ClientboundClearTitlesPacket.class, new QueueParser.ClearHandler()).build())
-                .build();
+                    .setId("webui-queue-parser").setPriority(100)
+                    .allStates(PacketHandlerStateCodec.<ClientSession>clientBuilder()
+                            .inbound(ClientboundSetSubtitleTextPacket.class, new QueueParser())
+                            .inbound(ClientboundClearTitlesPacket.class, new QueueParser.ClearHandler()).build())
+                    .build();
             PacketCodecRegistries.CLIENT_REGISTRY.register(c);
             LOG.info("Queue parser registered");
-        } catch (Exception e) { LOG.warn("Failed to register Queue parser", e); }
+        } catch (Exception e) {
+            LOG.warn("Failed to register Queue parser", e);
+        }
 
         registerAuthBypasserHandlers();
     }
@@ -220,18 +267,18 @@ public class WebUIPlugin implements ZenithProxyPlugin {
         }
         try {
             var stateCodec = PacketHandlerStateCodec.<ClientSession>clientBuilder()
-                .outbound(ServerboundHelloPacket.class, new AuthBypasserUuidHandler())
-                .inbound(ClientboundHelloPacket.class, new AuthBypasserAuthHandler())
-                .build();
+                    .outbound(ServerboundHelloPacket.class, new AuthBypasserUuidHandler())
+                    .inbound(ClientboundHelloPacket.class, new AuthBypasserAuthHandler())
+                    .build();
             var codec = PacketHandlerCodec.<ClientSession>clientBuilder()
-                .setId("webui-authbypass")
-                .setPriority(100000)
-                .state(org.geysermc.mcprotocollib.protocol.data.ProtocolState.LOGIN, stateCodec)
-                .build();
+                    .setId("webui-authbypass")
+                    .setPriority(100000)
+                    .state(org.geysermc.mcprotocollib.protocol.data.ProtocolState.LOGIN, stateCodec)
+                    .build();
             PacketCodecRegistries.CLIENT_REGISTRY.register(codec);
             LOG.info("AuthBypasser packet handlers registered (rewriteOfflineUuid={}, bypassAuthenticateHello={})",
-                configManager.getConfig().authBypasser.rewriteOfflineUuid,
-                configManager.getConfig().authBypasser.bypassAuthenticateHello);
+                    configManager.getConfig().authBypasser.rewriteOfflineUuid,
+                    configManager.getConfig().authBypasser.bypassAuthenticateHello);
         } catch (Exception e) {
             LOG.warn("Failed to register AuthBypasser handlers: {}", e.getMessage());
         }
@@ -243,6 +290,10 @@ public class WebUIPlugin implements ZenithProxyPlugin {
         ctx.getLogger(Logger.ROOT_LOGGER_NAME).addAppender(logHandler);
         logHandler.start();
     }
+
+    // ═══════════════════════════════════════════════════════════
+    //  Log broadcasting
+    // ═══════════════════════════════════════════════════════════
 
     private void detachLogAppender() {
         if (logHandler == null) return;
@@ -256,29 +307,35 @@ public class WebUIPlugin implements ZenithProxyPlugin {
         EVENT_BUS.subscribe(this, PublicChatEvent.class, e -> {
             try {
                 broadcastLog("CHAT", "Chat",
-                    "<" + (e.sender() != null ? e.sender().getName() : "Unknown") + "> "
-                    + componentToPlainText(e.component()));
-            } catch (Exception ignored) {}
+                        "<" + (e.sender() != null ? e.sender().getName() : "Unknown") + "> "
+                                + componentToPlainText(e.component()));
+            } catch (Exception ignored) {
+            }
         });
         EVENT_BUS.subscribe(this, SystemChatEvent.class, e -> {
-            try { broadcastLog("INFO", "System", componentToPlainText(e.component())); }
-            catch (Exception ignored) {}
+            try {
+                broadcastLog("INFO", "System", componentToPlainText(e.component()));
+            } catch (Exception ignored) {
+            }
         });
         EVENT_BUS.subscribe(this, WhisperChatEvent.class, e -> {
             try {
                 broadcastLog("CHAT", "Whisper",
-                    (e.outgoing() ? "→" : "←") + " "
-                    + (e.sender() != null ? e.sender().getName() : "Unknown") + " → "
-                    + (e.receiver() != null ? e.receiver().getName() : "Unknown") + ": "
-                    + componentToPlainText(e.component()));
-            } catch (Exception ignored) {}
+                        (e.outgoing() ? "→" : "←") + " "
+                                + (e.sender() != null ? e.sender().getName() : "Unknown") + " → "
+                                + (e.receiver() != null ? e.receiver().getName() : "Unknown") + ": "
+                                + componentToPlainText(e.component()));
+            } catch (Exception ignored) {
+            }
         });
         EVENT_BUS.subscribe(this, DeathMessageChatEvent.class, e -> {
-            try { broadcastLog("INFO", "Death", componentToPlainText(e.component())); }
-            catch (Exception ignored) {}
+            try {
+                broadcastLog("INFO", "Death", componentToPlainText(e.component()));
+            } catch (Exception ignored) {
+            }
         });
         EVENT_BUS.subscribe(this, ClientConnectEvent.class, e ->
-            broadcastLog("INFO", "Client", "Connecting to server..."));
+                broadcastLog("INFO", "Client", "Connecting to server..."));
         EVENT_BUS.subscribe(this, ClientOnlineEvent.class, e -> {
             QueueParser.reset();
             broadcastLog("INFO", "Client", "Now online");
@@ -288,26 +345,24 @@ public class WebUIPlugin implements ZenithProxyPlugin {
             broadcastLog("WARN", "Client", "Disconnected: " + e.reason());
         });
         EVENT_BUS.subscribe(this, QueueStartEvent.class, e ->
-            broadcastLog("INFO", "Queue", "Entered queue"));
+                broadcastLog("INFO", "Queue", "Entered queue"));
         EVENT_BUS.subscribe(this, QueuePositionUpdateEvent.class, e ->
-            broadcastLog("INFO", "Queue", "Queue position: " + e.position()));
+                broadcastLog("INFO", "Queue", "Queue position: " + e.position()));
         EVENT_BUS.subscribe(this, QueueCompleteEvent.class, e -> {
             QueueParser.reset();
             broadcastLog("INFO", "Queue", "Queue complete, entering server");
         });
     }
 
-    // ═══════════════════════════════════════════════════════════
-    //  Log broadcasting
-    // ═══════════════════════════════════════════════════════════
-
-    /** Called by {@link WebUILogHandler} and event subscribers. */
+    /**
+     * Called by {@link WebUILogHandler} and event subscribers.
+     */
     public void broadcastLog(String level, String logger, String message) {
         // Messages stay in their original English form; the frontend translates
         // them per visitor language (see web/js/i18n.js).
         LogEntry entry = new LogEntry(
-            level, logger, message,
-            System.currentTimeMillis(), logPollCounter.getAndIncrement());
+                level, logger, message,
+                System.currentTimeMillis(), logPollCounter.getAndIncrement());
         // Gson produces the SSE payload — one serialization serves every client.
         String sseFrame = HttpHelper.sseFrame(entry);
 
@@ -317,42 +372,5 @@ public class WebUIPlugin implements ZenithProxyPlugin {
             if (logBuffer.pollFirst() != null) logBufferApproxSize.decrementAndGet();
         }
         broadcastSSE(sseClients, sseFrame);
-    }
-
-    /** Push a title packet to log-stream SSE clients. Called by {@link TitlePacketHandler}. */
-    public static void pushTitle(String text) {
-        if (text == null || text.isEmpty()) return;
-        JsonObject payload = new JsonObject();
-        payload.addProperty("type", "title");
-        payload.addProperty("text", text);
-        broadcastSSE(sseClients, HttpHelper.sseFrame(payload));
-    }
-
-    /**
-     * Write a pre-built SSE data frame to every active channel in {@code clients}.
-     * Collects dead channels for batch removal — avoids CopyOnWriteArrayList.removeIf
-     * which copies the entire array even when nothing is removed.
-     * @param sseFrame pre-built SSE frame string (format: "data: {...}\n\n")
-     */
-    public static void broadcastSSE(List<Channel> clients, String sseFrame) {
-        ByteBuf template = Unpooled.copiedBuffer(sseFrame, CharsetUtil.UTF_8);
-        List<Channel> dead = new ArrayList<>(2);
-        for (Channel ch : clients) {
-            if (!ch.isActive()) {
-                dead.add(ch);
-                continue;
-            }
-            try {
-                ch.writeAndFlush(new DefaultHttpContent(template.retainedDuplicate()))
-                    .addListener(f -> { if (!f.isSuccess()) ch.close(); });
-            } catch (Exception e) {
-                ch.close();
-                dead.add(ch);
-            }
-        }
-        if (!dead.isEmpty()) {
-            clients.removeAll(dead);
-        }
-        template.release();
     }
 }

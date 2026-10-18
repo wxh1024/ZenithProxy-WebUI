@@ -2,43 +2,52 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta content="width=device-width, initial-scale=1.0" name="viewport">
     <title data-i18n-doc="login.title">ZenithProxy WebUI 登录</title>
-    <link rel="stylesheet" href="styles.css">
+    <link href="styles.css" rel="stylesheet">
 </head>
 <body class="login-body">
-    <div class="login-container">
-        <div class="login-logo">
-            <div class="login-icon">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
-            </div>
-            <h1>ZenithProxy <span>WebUI</span></h1>
-            <p data-i18n="login.subtitle">请登录以继续</p>
-            <div class="lang-switch lang-switch-inline">
-                <select id="languageSelect" class="lang-select">
-                    <option value="zh">中文</option>
-                    <option value="en">English</option>
-                </select>
-            </div>
+<div class="login-container">
+    <div class="login-logo">
+        <div class="login-icon">
+            <svg fill="none" height="24" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" width="24">
+                <rect height="7" width="7" x="3" y="3"/>
+                <rect height="7" width="7" x="14" y="3"/>
+                <rect height="7" width="7" x="3" y="14"/>
+                <rect height="7" width="7" x="14" y="14"/>
+            </svg>
         </div>
-
-        <div class="login-error" id="errorMessage"></div>
-
-        <form class="login-form" id="loginForm">
-            <div class="form-group">
-                <label for="username" data-i18n="login.username">用户名</label>
-                <input type="text" id="username" name="username" data-i18n-placeholder="login.usernamePlaceholder" placeholder="请输入用户名" required autocomplete="username">
-            </div>
-            <div class="form-group">
-                <label for="password" data-i18n="login.password">密码</label>
-                <input type="password" id="password" name="password" data-i18n-placeholder="login.passwordPlaceholder" placeholder="请输入密码" required autocomplete="current-password">
-            </div>
-            <button type="submit" class="btn btn-primary login-btn" id="loginBtn" data-i18n="login.submit">登 录</button>
-        </form>
-
-        <div class="login-footer" data-i18n="login.footer">ZenithProxy WebUI 插件</div>
+        <h1>ZenithProxy <span>WebUI</span></h1>
+        <p data-i18n="login.subtitle">请登录以继续</p>
+        <div class="lang-switch lang-switch-inline">
+            <select class="lang-select" id="languageSelect">
+                <option value="zh">中文</option>
+                <option value="en">English</option>
+            </select>
+        </div>
     </div>
 
-    <script type="module" src="js/login.js"></script>
+    <div class="login-error" id="errorMessage"></div>
+
+    <form class="login-form" id="loginForm">
+        <div class="form-group">
+            <label data-i18n="login.username" for="username">用户名</label>
+            <input autocomplete="username" data-i18n-placeholder="login.usernamePlaceholder" id="username"
+                   name="username"
+                   placeholder="请输入用户名" required type="text">
+        </div>
+        <div class="form-group">
+            <label data-i18n="login.password" for="password">密码</label>
+            <input autocomplete="current-password" data-i18n-placeholder="login.passwordPlaceholder" id="password"
+                   name="password"
+                   placeholder="请输入密码" required type="password">
+        </div>
+        <button class="btn btn-primary login-btn" data-i18n="login.submit" id="loginBtn" type="submit">登 录</button>
+    </form>
+
+    <div class="login-footer" data-i18n="login.footer">ZenithProxy WebUI 插件</div>
+</div>
+
+<script src="js/login.js" type="module"></script>
 </body>
 </html>

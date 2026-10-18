@@ -1,6 +1,6 @@
 /** Shared DOM / formatting helpers. */
 
-import { t } from './i18n.js';
+import {t} from './i18n.js';
 
 /** Single-pass HTML escaping — cheaper and safer than chained replaces. */
 export function escapeHtml(str) {

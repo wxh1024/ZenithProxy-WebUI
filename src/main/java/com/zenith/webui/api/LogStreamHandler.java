@@ -38,7 +38,8 @@ public class LogStreamHandler {
             try {
                 ByteBuf buf = Unpooled.copiedBuffer(sb.toString(), CharsetUtil.UTF_8);
                 ctx.writeAndFlush(new DefaultHttpContent(buf));
-            } catch (Exception ignored) {}
+            } catch (Exception ignored) {
+            }
         }
 
         WebUIPlugin.sseClients.add(ctx.channel());

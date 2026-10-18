@@ -3,17 +3,17 @@
  * onto proxy commands, reporting the outcome through localized toasts.
  */
 
-import { apiCall } from './api.js';
-import { t } from './i18n.js';
-import { showNotification } from './util.js';
+import {apiCall} from './api.js';
+import {t} from './i18n.js';
+import {showNotification} from './util.js';
 
 /** Runs a proxy command and shows a success/failure toast. */
 async function run(command, okKey, failKey) {
-    const r = await apiCall('/commands', 'POST', { command });
+    const r = await apiCall('/commands', 'POST', {command});
     if (r && r.success) {
         showNotification(t(okKey), 'success');
     } else {
-        showNotification(t(failKey, { err: r?.error || 'Error' }), 'error');
+        showNotification(t(failKey, {err: r?.error || 'Error'}), 'error');
     }
 }
 

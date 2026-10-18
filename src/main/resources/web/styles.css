@@ -328,6 +328,7 @@ body {
     background-color: rgba(166, 218, 149, 0.15);
     color: var(--ctp-green);
 }
+
 .tile-connect:hover .tile-icon {
     background-color: rgba(166, 218, 149, 0.25);
 }
@@ -336,6 +337,7 @@ body {
     background-color: rgba(237, 135, 150, 0.15);
     color: var(--ctp-red);
 }
+
 .tile-disconnect:hover .tile-icon {
     background-color: rgba(237, 135, 150, 0.25);
 }
@@ -344,6 +346,7 @@ body {
     background-color: rgba(238, 212, 159, 0.15);
     color: var(--ctp-yellow);
 }
+
 .tile-reconnect:hover .tile-icon {
     background-color: rgba(238, 212, 159, 0.25);
 }
@@ -352,6 +355,7 @@ body {
     background-color: rgba(245, 169, 127, 0.15);
     color: var(--ctp-peach);
 }
+
 .tile-shutdown:hover .tile-icon {
     background-color: rgba(245, 169, 127, 0.25);
 }
@@ -632,10 +636,21 @@ body {
     flex-shrink: 0;
 }
 
-.log-lv.info { color: var(--ctp-sapphire); }
-.log-lv.warn { color: var(--ctp-yellow); }
-.log-lv.error { color: var(--ctp-red); }
-.log-lv.debug { color: var(--ctp-overlay1); }
+.log-lv.info {
+    color: var(--ctp-sapphire);
+}
+
+.log-lv.warn {
+    color: var(--ctp-yellow);
+}
+
+.log-lv.error {
+    color: var(--ctp-red);
+}
+
+.log-lv.debug {
+    color: var(--ctp-overlay1);
+}
 
 .log-msg {
     flex: 1;
@@ -776,6 +791,7 @@ body {
     .dashboard-grid {
         grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
     }
+
     .charts-grid {
         grid-template-columns: repeat(2, 1fr);
     }
@@ -786,6 +802,7 @@ body {
     .charts-grid {
         grid-template-columns: 1fr;
     }
+
     .sidebar {
         width: var(--sidebar-collapsed);
     }
@@ -924,9 +941,17 @@ body {
     font-size: 0.72rem;
 }
 
-.latency-item .ping-good { color: var(--ctp-green); }
-.latency-item .ping-medium { color: var(--ctp-yellow); }
-.latency-item .ping-bad { color: var(--ctp-red); }
+.latency-item .ping-good {
+    color: var(--ctp-green);
+}
+
+.latency-item .ping-medium {
+    color: var(--ctp-yellow);
+}
+
+.latency-item .ping-bad {
+    color: var(--ctp-red);
+}
 
 /* Terminal command separator */
 .terminal-line-command::before {

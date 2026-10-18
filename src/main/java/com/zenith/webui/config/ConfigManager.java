@@ -15,7 +15,7 @@ import java.security.SecureRandom;
 public class ConfigManager {
     private static final ComponentLogger LOG = ComponentLogger.logger("WebUI");
     private static final Gson GSON = new GsonBuilder().disableHtmlEscaping().setPrettyPrinting().create();
-
+    private static final char[] HEX = "0123456789abcdef".toCharArray();
     private final Path configDir;
     private final Path configFile;
     private WebUIConfig config;
@@ -23,6 +23,41 @@ public class ConfigManager {
     public ConfigManager(Path configDir) {
         this.configDir = configDir;
         this.configFile = configDir.resolve("config.json");
+    }
+
+    private static boolean isValid(WebUIConfig c) {
+        if (c == null) return false;
+        if (c.port < 1 || c.port > 65535) return false;
+        if (c.auth == null) return false;
+        if (c.auth.username == null || c.auth.username.isBlank()) return false;
+        if (c.auth.password == null || c.auth.password.isBlank()) return false;
+        return true;
+    }
+
+    private static WebUIConfig freshConfig() {
+        WebUIConfig c = new WebUIConfig();
+        c.auth.password = generateRandomPassword();
+        return c;
+    }
+
+    private static void mkdirs(Path dir) {
+        try {
+            Files.createDirectories(dir);
+        } catch (IOException e) {
+            throw new UncheckedIOException("Failed to create directory: " + dir, e);
+        }
+    }
+
+    private static String generateRandomPassword() {
+        byte[] bytes = new byte[8];
+        new SecureRandom().nextBytes(bytes);
+        char[] chars = new char[16];
+        for (int i = 0; i < 8; i++) {
+            int b = bytes[i] & 0xFF;
+            chars[i * 2] = HEX[b >>> 4];
+            chars[i * 2 + 1] = HEX[b & 0x0F];
+        }
+        return new String(chars);
     }
 
     public void loadOrCreate() {
@@ -41,7 +76,7 @@ public class ConfigManager {
             config = freshConfig();
             save();
             LOG.info("Created WebUI config: username={}, password={}",
-                config.auth.username, config.auth.password);
+                    config.auth.username, config.auth.password);
         }
     }
 
@@ -57,16 +92,9 @@ public class ConfigManager {
         }
     }
 
-    private static boolean isValid(WebUIConfig c) {
-        if (c == null) return false;
-        if (c.port < 1 || c.port > 65535) return false;
-        if (c.auth == null) return false;
-        if (c.auth.username == null || c.auth.username.isBlank()) return false;
-        if (c.auth.password == null || c.auth.password.isBlank()) return false;
-        return true;
-    }
-
-    /** Backup corrupted file as .bak, then regenerate from scratch. */
+    /**
+     * Backup corrupted file as .bak, then regenerate from scratch.
+     */
     private void backupAndRegenerate(String reason) {
         Path bakFile = configDir.resolve("config.json.bak");
         try {
@@ -80,12 +108,6 @@ public class ConfigManager {
         LOG.info("Regenerated WebUI config with random password");
     }
 
-    private static WebUIConfig freshConfig() {
-        WebUIConfig c = new WebUIConfig();
-        c.auth.password = generateRandomPassword();
-        return c;
-    }
-
     public void save() {
         try {
             mkdirs(configDir);
@@ -95,29 +117,15 @@ public class ConfigManager {
         }
     }
 
-    public WebUIConfig getConfig() { return config; }
-    public Path getConfigDir() { return configDir; }
-    public Path getConfigFile() { return configFile; }
-
-    private static void mkdirs(Path dir) {
-        try {
-            Files.createDirectories(dir);
-        } catch (IOException e) {
-            throw new UncheckedIOException("Failed to create directory: " + dir, e);
-        }
+    public WebUIConfig getConfig() {
+        return config;
     }
 
-    private static final char[] HEX = "0123456789abcdef".toCharArray();
+    public Path getConfigDir() {
+        return configDir;
+    }
 
-    private static String generateRandomPassword() {
-        byte[] bytes = new byte[8];
-        new SecureRandom().nextBytes(bytes);
-        char[] chars = new char[16];
-        for (int i = 0; i < 8; i++) {
-            int b = bytes[i] & 0xFF;
-            chars[i * 2] = HEX[b >>> 4];
-            chars[i * 2 + 1] = HEX[b & 0x0F];
-        }
-        return new String(chars);
+    public Path getConfigFile() {
+        return configFile;
     }
 }

@@ -6,11 +6,11 @@
  * fuzzy → multi-word), so `ssw` still finds `server switch`.
  */
 
-import { API_BASE } from './api.js';
-import { state, LIMITS } from './state.js';
-import { escapeHtml } from './util.js';
-import { isZh } from './i18n.js';
-import { zhCommandDescription } from './commandDesc.js';
+import {API_BASE} from './api.js';
+import {LIMITS, state} from './state.js';
+import {escapeHtml} from './util.js';
+import {isZh} from './i18n.js';
+import {zhCommandDescription} from './commandDesc.js';
 
 /** Fallback command list; replaced by `GET /api/commands` on load. */
 const KNOWN_COMMANDS = [
@@ -46,7 +46,7 @@ const KNOWN_COMMANDS = [
 /** Accepts both the legacy string array and the newer object array. */
 function normalizeCommands(cmds) {
     if (!cmds || !cmds.length) return [];
-    if (typeof cmds[0] === 'string') return cmds.map(name => ({ name }));
+    if (typeof cmds[0] === 'string') return cmds.map(name => ({name}));
     return cmds;
 }
 
@@ -78,7 +78,13 @@ function wordBoundaryMatch(target, q) {
 function fuzzyMatch(target, q) {
     let ti = 0, qi = 0, gaps = 0;
     while (ti < target.length && qi < q.length) {
-        if (target[ti] === q[qi]) { ti++; qi++; } else { ti++; gaps++; }
+        if (target[ti] === q[qi]) {
+            ti++;
+            qi++;
+        } else {
+            ti++;
+            gaps++;
+        }
     }
     return qi === q.length ? 150 - gaps : -1;
 }
@@ -146,7 +152,10 @@ function highlightMatch(name, q) {
                 qi++;
             }
         }
-        if (qi === qLower.length) { start = first; end = last + 1; }
+        if (qi === qLower.length) {
+            start = first;
+            end = last + 1;
+        }
     }
 
     if (start >= 0) {
@@ -195,7 +204,7 @@ export function showAutocomplete(value) {
         suggestions = resultCache.filter(c => c._score >= 0);
     } else {
         const scored = state.commands
-            .map(c => ({ ...c, _score: scoreCommand(c, q) }))
+            .map(c => ({...c, _score: scoreCommand(c, q)}))
             .filter(c => c._score >= 0)
             .sort((a, b) => b._score - a._score)
             .slice(0, LIMITS.MAX_SUGGESTIONS);
@@ -204,7 +213,10 @@ export function showAutocomplete(value) {
         cacheKey = q;
     }
 
-    if (!suggestions.length) { hideAutocomplete(); return; }
+    if (!suggestions.length) {
+        hideAutocomplete();
+        return;
+    }
     selectedIndex = -1;
 
     dd.innerHTML = suggestions.map((c, i) => {
@@ -226,7 +238,7 @@ export function navigateAutocomplete(delta) {
     if (selectedIndex < 0) selectedIndex = items.length - 1;
     if (selectedIndex >= items.length) selectedIndex = 0;
     items[selectedIndex].classList.add('selected');
-    items[selectedIndex].scrollIntoView({ block: 'nearest' });
+    items[selectedIndex].scrollIntoView({block: 'nearest'});
 }
 
 /**
@@ -280,8 +292,11 @@ export function hideAutocomplete() {
 /** Fetches the authoritative command list (names + aliases + descriptions). */
 export async function loadCommands() {
     try {
-        const r = await fetch(API_BASE + '/commands', { credentials: 'include' });
-        if (r.status === 401) { window.location.href = '/login.html'; return; }
+        const r = await fetch(API_BASE + '/commands', {credentials: 'include'});
+        if (r.status === 401) {
+            window.location.href = '/login.html';
+            return;
+        }
         const d = await r.json();
         if (Array.isArray(d) && d.length > 0) {
             state.commands = normalizeCommands(d).sort((a, b) => a.name.localeCompare(b.name));
@@ -292,5 +307,6 @@ export async function loadCommands() {
                 }
             }
         }
-    } catch { /* keep the built-in list */ }
+    } catch { /* keep the built-in list */
+    }
 }

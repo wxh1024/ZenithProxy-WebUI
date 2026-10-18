@@ -10,7 +10,7 @@ export async function apiCall(endpoint, method = 'GET', body = null) {
     try {
         const opts = {
             method,
-            headers: { 'Content-Type': 'application/json' },
+            headers: {'Content-Type': 'application/json'},
             credentials: 'include',
         };
         if (body) opts.body = JSON.stringify(body);
@@ -39,9 +39,12 @@ export function createStream(url, onMessage) {
         source.onmessage = event => {
             try {
                 onMessage(JSON.parse(event.data));
-            } catch { /* malformed frame — drop it */ }
+            } catch { /* malformed frame — drop it */
+            }
         };
-        source.onopen = () => { delay = 1000; };
+        source.onopen = () => {
+            delay = 1000;
+        };
         source.onerror = () => {
             source.close();
             source = null;
@@ -51,13 +54,18 @@ export function createStream(url, onMessage) {
     };
 
     connect();
-    return () => { if (source) { source.close(); source = null; } };
+    return () => {
+        if (source) {
+            source.close();
+            source = null;
+        }
+    };
 }
 
 /** Resolves the logged-in username, redirecting to the login page when anonymous. */
 export async function fetchSession() {
     try {
-        const response = await fetch('/api/auth/status', { credentials: 'include' });
+        const response = await fetch('/api/auth/status', {credentials: 'include'});
         const data = await response.json();
         if (!data.authenticated) {
             window.location.href = '/login.html';
@@ -73,7 +81,8 @@ export async function fetchSession() {
 /** Clears the auth cookie and returns to the login page. */
 export async function logout() {
     try {
-        await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
-    } catch { /* already logged out */ }
+        await fetch('/api/auth/logout', {method: 'POST', credentials: 'include'});
+    } catch { /* already logged out */
+    }
     window.location.href = '/login.html';
 }

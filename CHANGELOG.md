@@ -4,15 +4,28 @@
 
 ## [未发布]
 
+## [1.5.1] - 2026-10-18
+
+### 变更
+
+- **全仓库统一代码格式**：对后端 Java、前端 ES 模块、HTML / CSS 与文档做了一次
+  IDE 级格式化，不含任何行为变更。
+    - Java：静态字段统一前置，成员按可见性分组；单行 `if` / `catch` 展开为多行块，
+      Javadoc 注释统一为块注释形式。
+    - JS：命名导入按字母序排列；单行 `if` / `catch` 展开为多行块。
+    - HTML：属性按字母序排列，长行按 120 列折行，SVG 图标结构补齐换行。
+    - CSS：单行规则展开为多行，兄弟选择器之间补空行分隔。
+    - Markdown / JSON：列表缩进层级与数组展开方式归一。
+
 ## [1.5.0] - 2026-10-18
 
 ### 新增
 
 - **终端命令补全的中文描述**：命令说明由ZenithProxy 核心 jar 提供，只有英文且无法在服务端
-  本地化。新增 `web/js/commandDesc.js`，按**命令名**索引的中文描述表（约 80 条）；
+  本地化。新增 `web/js/commandDesc.js`，按 **命令名**索引的中文描述表（约 80 条）；
   中文模式下套用该表，英文模式与未收录的命令照旧显示核心原文。
-  - 切换语言时会重绘已展开的补全下拉。
-  - 按命令名（核心保证的稳定契约）而非英文文案匹配，核心改文案不会导致整表失效。
+    - 切换语言时会重绘已展开的补全下拉。
+    - 按命令名（核心保证的稳定契约）而非英文文案匹配，核心改文案不会导致整表失效。
 
 ### 修复
 
@@ -26,19 +39,19 @@
   `renderVersionBadge()` 一并移除。
 - **`/api/` 前缀判断改为大小写不敏感**：原先 `startsWith("/api/")` 大小写敏感，
   `/API/dashboard` 会漏过认证分支落到静态文件处理器，返回 SPA 外壳 HTML（200）而非 401。
-  该路径因路由 switch 同样大小写敏感而无法触达任何真实处理器，**不构成数据泄露**，
+  该路径因路由 switch 同样大小写敏感而无法触达任何真实处理器， **不构成数据泄露**，
   但破坏了"`/api/` 下一律需要凭据"的契约。现改用 `regionMatches(true, ...)`。
 
 ### 新增
 
 - **国际化 (i18n) + 英文支持**：仪表板与登录页完整支持中文 / 英文。
-  - 语言优先级：`?lang=` 查询参数 → 界面内切换器（`localStorage`）→ `config.json`
-    的 `language` → `navigator.languages` → `zh`
-  - 新增 `config.json` 的 `language` 字段（`auto` / `zh` / `en`，默认 `auto`）
-  - 新增公开端点 `GET /api/i18n`，返回默认语言、支持语言与日志短语表
-  - 侧边栏与登录页新增语言切换下拉框
-  - HTML 改用 `data-i18n` / `data-i18n-placeholder` / `data-i18n-title` 绑定，
-    移除原先中英并排的 `.bilingual` 标记
+    - 语言优先级：`?lang=` 查询参数 → 界面内切换器（`localStorage`）→ `config.json`
+      的 `language` → `navigator.languages` → `zh`
+    - 新增 `config.json` 的 `language` 字段（`auto` / `zh` / `en`，默认 `auto`）
+    - 新增公开端点 `GET /api/i18n`，返回默认语言、支持语言与日志短语表
+    - 侧边栏与登录页新增语言切换下拉框
+    - HTML 改用 `data-i18n` / `data-i18n-placeholder` / `data-i18n-title` 绑定，
+      移除原先中英并排的 `.bilingual` 标记
 - **`README.en.md`**：完整英文文档（安装、配置、API、模块架构、故障排除、许可证），
   README 顶部互相链接
 

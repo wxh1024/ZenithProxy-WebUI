@@ -16,7 +16,9 @@ import java.util.concurrent.atomic.AtomicLong;
 
 public class AuthManager {
     private static final ComponentLogger LOG = ComponentLogger.logger("WebUI-Auth");
-    /** Failed logins allowed per IP within one {@link #RATE_LIMIT_WINDOW_MS} window. */
+    /**
+     * Failed logins allowed per IP within one {@link #RATE_LIMIT_WINDOW_MS} window.
+     */
     private static final int MAX_ATTEMPTS_PER_MINUTE = 5;
     private static final long RATE_LIMIT_WINDOW_MS = 60_000;
 
@@ -29,9 +31,13 @@ public class AuthManager {
 
     private final WebUIConfig.AuthConfig config;
     private final Map<String, TokenInfo> tokens = new ConcurrentHashMap<>();
-    /** SSE channels keyed by token — for event-driven disconnect on token expiry/revocation. */
+    /**
+     * SSE channels keyed by token — for event-driven disconnect on token expiry/revocation.
+     */
     private final Map<String, Channel> tokenChannels = new ConcurrentHashMap<>();
-    /** Rate limit: key = "ip:minute_timestamp" */
+    /**
+     * Rate limit: key = "ip:minute_timestamp"
+     */
     private final Map<String, Integer> rateLimitMap = new ConcurrentHashMap<>();
     private final ScheduledExecutorService cleanupExecutor;
 
@@ -52,7 +58,20 @@ public class AuthManager {
         LOG.info("Auth manager initialized, token expiry: {}ms", config.tokenExpiry);
     }
 
-    /** Stop background cleanup (call on plugin unload). */
+    /**
+     * Current auth generation — per-channel auth caches compare against this.
+     */
+    static long epoch() {
+        return AUTH_EPOCH.get();
+    }
+
+    private static boolean secureEquals(byte[] a, byte[] b) {
+        return MessageDigest.isEqual(a, b);
+    }
+
+    /**
+     * Stop background cleanup (call on plugin unload).
+     */
     public void shutdown() {
         cleanupExecutor.shutdownNow();
     }
@@ -60,6 +79,7 @@ public class AuthManager {
     /**
      * Authenticate user with username and password, rate-limited by IP.
      * Only failed attempts count towards the limit.
+     *
      * @return token if successful, null otherwise
      */
     public String authenticate(String username, String password, String clientIp) {
@@ -119,7 +139,9 @@ public class AuthManager {
         }
     }
 
-    /** Unregister an SSE channel (called on channelInactive). */
+    /**
+     * Unregister an SSE channel (called on channelInactive).
+     */
     void unregisterChannel(Channel channel) {
         if (channel == null) return;
         tokenChannels.values().removeIf(ch -> ch == channel);
@@ -150,15 +172,6 @@ public class AuthManager {
         });
         AUTH_EPOCH.incrementAndGet();
         LOG.info("All tokens invalidated for user: {}", username);
-    }
-
-    /** Current auth generation — per-channel auth caches compare against this. */
-    static long epoch() {
-        return AUTH_EPOCH.get();
-    }
-
-    private static boolean secureEquals(byte[] a, byte[] b) {
-        return MessageDigest.isEqual(a, b);
     }
 
     private String generateToken(String username) {

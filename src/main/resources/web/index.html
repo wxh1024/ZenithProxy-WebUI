@@ -2,239 +2,338 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta content="width=device-width, initial-scale=1.0" name="viewport">
     <title data-i18n-doc="app.title">ZenithProxy WebUI</title>
-    <link rel="stylesheet" href="styles.css">
+    <link href="styles.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
 </head>
 <body>
-    <div class="container">
-        <nav class="sidebar">
-            <div class="logo">
-                <h1>ZenithProxy</h1>
+<div class="container">
+    <nav class="sidebar">
+        <div class="logo">
+            <h1>ZenithProxy</h1>
+        </div>
+        <ul class="nav-menu">
+            <li class="nav-item active" data-page="dashboard">
+                <span class="icon"><svg fill="none" height="18" stroke="currentColor" stroke-width="2"
+                                        viewBox="0 0 24 24"
+                                        width="18"><rect height="7" width="7" x="3" y="3"/><rect height="7" width="7"
+                                                                                                 x="14"
+                                                                                                 y="3"/><rect
+                        height="7" width="7" x="3" y="14"/><rect height="7" width="7" x="14" y="14"/></svg></span>
+                <span class="text"><span data-i18n="nav.dashboard">仪表板</span></span>
+            </li>
+            <li class="nav-item" data-page="terminal">
+                <span class="icon"><svg fill="none" height="18" stroke="currentColor" stroke-width="2"
+                                        viewBox="0 0 24 24"
+                                        width="18"><polyline points="4 17 10 11 4 5"/><line x1="12" x2="20"
+                                                                                            y1="19"
+                                                                                            y2="19"/></svg></span>
+                <span class="text"><span data-i18n="nav.terminal">终端日志</span></span>
+            </li>
+            <li class="nav-item" data-page="players">
+                <span class="icon"><svg fill="none" height="18" stroke="currentColor" stroke-width="2"
+                                        viewBox="0 0 24 24"
+                                        width="18"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle
+                        cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>
+                <span class="text"><span data-i18n="nav.players">白名单管理</span></span>
+            </li>
+        </ul>
+        <div class="nav-footer">
+            <div class="lang-switch">
+                <label data-i18n="nav.language" for="languageSelect">语言</label>
+                <select class="lang-select" id="languageSelect">
+                    <option value="zh">中文</option>
+                    <option value="en">English</option>
+                </select>
             </div>
-            <ul class="nav-menu">
-                <li class="nav-item active" data-page="dashboard">
-                    <span class="icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg></span>
-                    <span class="text"><span data-i18n="nav.dashboard">仪表板</span></span>
-                </li>
-                <li class="nav-item" data-page="terminal">
-                    <span class="icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg></span>
-                    <span class="text"><span data-i18n="nav.terminal">终端日志</span></span>
-                </li>
-                <li class="nav-item" data-page="players">
-                    <span class="icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>
-                    <span class="text"><span data-i18n="nav.players">白名单管理</span></span>
-                </li>
-            </ul>
-            <div class="nav-footer">
-                <div class="lang-switch">
-                    <label for="languageSelect" data-i18n="nav.language">语言</label>
-                    <select id="languageSelect" class="lang-select">
-                        <option value="zh">中文</option>
-                        <option value="en">English</option>
-                    </select>
-                </div>
-                <div class="user-info" id="userInfo" style="display:none; margin-top:12px;">
-                    <button class="logout-btn" onclick="logout()">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
-                            <polyline points="16 17 21 12 16 7"/>
-                            <line x1="21" y1="12" x2="9" y2="12"/>
+            <div class="user-info" id="userInfo" style="display:none; margin-top:12px;">
+                <button class="logout-btn" onclick="logout()">
+                    <svg fill="none" height="14" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" width="14">
+                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+                        <polyline points="16 17 21 12 16 7"/>
+                        <line x1="21" x2="9" y1="12" y2="12"/>
+                    </svg>
+                    <span data-i18n="nav.logout">登出</span>
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <main class="main-content">
+        <!-- Dashboard Page -->
+        <section class="page active" id="dashboard">
+            <div class="page-header">
+                <h2 data-i18n="page.dashboard.title">状态监控仪表板</h2>
+            </div>
+            <!-- Server Control Panel -->
+            <div class="control-tile-grid">
+                <button class="control-tile tile-connect" data-i18n-title="title.connect" onclick="serverConnect()"
+                        title="连接到服务器">
+                    <div class="tile-icon">
+                        <svg fill="none" height="24" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"
+                             width="24">
+                            <path d="M5 12h14"/>
+                            <path d="m12 5 7 7-7 7"/>
                         </svg>
-                        <span data-i18n="nav.logout">登出</span>
-                    </button>
+                    </div>
+                    <div class="tile-label" data-i18n="action.connect">连接</div>
+                </button>
+                <button class="control-tile tile-disconnect" data-i18n-title="title.disconnect"
+                        onclick="serverDisconnect()" title="断开与服务器的连接">
+                    <div class="tile-icon">
+                        <svg fill="none" height="24" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"
+                             width="24">
+                            <path d="M18 6 6 18"/>
+                            <path d="m6 6 12 12"/>
+                        </svg>
+                    </div>
+                    <div class="tile-label" data-i18n="action.disconnect">断开</div>
+                </button>
+                <button class="control-tile tile-reconnect" data-i18n-title="title.reconnect"
+                        onclick="serverReconnect()" title="重新连接服务器">
+                    <div class="tile-icon">
+                        <svg fill="none" height="24" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"
+                             width="24">
+                            <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/>
+                            <path d="M21 3v5h-5"/>
+                            <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/>
+                            <path d="M8 16H3v5"/>
+                        </svg>
+                    </div>
+                    <div class="tile-label" data-i18n="action.reconnect">重连</div>
+                </button>
+                <button class="control-tile tile-shutdown" data-i18n-title="title.shutdown" onclick="serverShutdown()"
+                        title="关闭代理">
+                    <div class="tile-icon">
+                        <svg fill="none" height="24" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"
+                             width="24">
+                            <path d="M18.36 6.64a9 9 0 1 1-12.73 0"/>
+                            <line x1="12" x2="12" y1="2" y2="12"/>
+                        </svg>
+                    </div>
+                    <div class="tile-label" data-i18n="action.shutdown">关闭</div>
+                </button>
+            </div>
+
+            <div class="dashboard-grid">
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <svg fill="none" height="22" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"
+                             width="22">
+                            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+                            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+                        </svg>
+                    </div>
+                    <div class="stat-info">
+                        <h3 data-i18n="card.proxyStatus">代理状态</h3>
+                        <p data-i18n="status.disconnected" id="proxyStatus">未连接</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <svg fill="none" height="22" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"
+                             width="22">
+                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                            <circle cx="12" cy="7" r="4"/>
+                        </svg>
+                    </div>
+                    <div class="stat-info">
+                        <h3 data-i18n="card.botAccount">机器人账号</h3>
+                        <p id="currentUsername">-</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <svg fill="none" height="22" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"
+                             width="22">
+                            <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+                        </svg>
+                    </div>
+                    <div class="stat-info">
+                        <h3 data-i18n="card.proxyAddress">代理地址</h3>
+                        <p id="proxyAddress">-</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <svg fill="none" height="22" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"
+                             width="22">
+                            <circle cx="12" cy="12" r="10"/>
+                            <polyline points="12 6 12 12 16 14"/>
+                        </svg>
+                    </div>
+                    <div class="stat-info">
+                        <h3 data-i18n="card.uptime">运行时间</h3>
+                        <p id="uptime">-</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <svg fill="none" height="22" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"
+                             width="22">
+                            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                            <circle cx="9" cy="7" r="4"/>
+                            <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+                            <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                        </svg>
+                    </div>
+                    <div class="stat-info">
+                        <h3 data-i18n="card.players">玩家连接</h3>
+                        <p id="playerConnection">-</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <svg fill="none" height="22" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"
+                             width="22">
+                            <path d="M4 6h16M4 12h16M4 18h7"/>
+                        </svg>
+                    </div>
+                    <div class="stat-info">
+                        <h3 data-i18n="card.queue">队列</h3>
+                        <div class="queue-lines">
+                            <p id="queuePosText">-</p>
+                            <p class="queue-sub" id="queueOnlineText"></p>
+                        </div>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <svg fill="none" height="22" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"
+                             width="22">
+                            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+                        </svg>
+                    </div>
+                    <div class="stat-info">
+                        <h3 data-i18n="card.health">血量 / 饱食度</h3>
+                        <p id="playerStats">-</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <svg fill="none" height="22" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"
+                             width="22">
+                            <polygon points="12 2 2 7 12 12 22 7 12 2"/>
+                            <polyline points="2 17 12 22 22 17"/>
+                            <polyline points="2 12 12 17 22 12"/>
+                        </svg>
+                    </div>
+                    <div class="stat-info">
+                        <h3 data-i18n="card.version">Minecraft 版本</h3>
+                        <p id="mcVersion">-<small id="viaVersion"
+                                                  style="font-size:0.75rem;color:var(--ctp-overlay0);margin-left:6px"></small>
+                        </p>
+                    </div>
                 </div>
             </div>
-        </nav>
+            <div class="charts-grid">
+                <div class="chart-card">
+                    <h3 data-i18n="chart.cpu">CPU 占用</h3>
+                    <canvas id="cpuChart"></canvas>
+                </div>
+                <div class="chart-card">
+                    <h3 data-i18n="chart.memory">内存占用</h3>
+                    <canvas id="memoryChart"></canvas>
+                </div>
+                <div class="chart-card">
+                    <h3 data-i18n="chart.network">网络流量</h3>
+                    <canvas id="networkChart"></canvas>
+                </div>
+                <div class="chart-card">
+                    <h3 data-i18n="chart.latency">延迟波动</h3>
+                    <canvas id="latencyChart"></canvas>
+                    <div class="latency-detail" id="latencyDetail"></div>
+                </div>
+            </div>
+        </section>
 
-        <main class="main-content">
-            <!-- Dashboard Page -->
-            <section class="page active" id="dashboard">
-                <div class="page-header">
-                    <h2 data-i18n="page.dashboard.title">状态监控仪表板</h2>
+        <!-- Terminal + Logs Page -->
+        <section class="page" id="terminal">
+            <div class="terminal-container">
+                <div class="terminal-titlebar">
+                    <div class="terminal-title-left">
+                        <span class="terminal-title"><span id="terminalUsername">root</span>@zenith</span>
+                        <span class="terminal-status" data-i18n="status.connected" id="terminalStatus">已连接</span>
+                    </div>
+                    <div class="terminal-title-right">
+                        <span class="terminal-counter" id="terminalCmdCount">命令: 0</span>
+                        <span class="terminal-counter" id="terminalLogCount">日志: 0</span>
+                        <button class="btn btn-secondary btn-sm" data-i18n="action.export"
+                                onclick="exportTerminalContent()">导出
+                        </button>
+                        <button class="btn btn-secondary btn-sm" data-i18n="action.clear" onclick="clearTerminal()">
+                            清空
+                        </button>
+                    </div>
                 </div>
-                <!-- Server Control Panel -->
-                <div class="control-tile-grid">
-                    <button class="control-tile tile-connect" onclick="serverConnect()" data-i18n-title="title.connect" title="连接到服务器">
-                        <div class="tile-icon">
-                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
-                        </div>
-                        <div class="tile-label" data-i18n="action.connect">连接</div>
-                    </button>
-                    <button class="control-tile tile-disconnect" onclick="serverDisconnect()" data-i18n-title="title.disconnect" title="断开与服务器的连接">
-                        <div class="tile-icon">
-                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
-                        </div>
-                        <div class="tile-label" data-i18n="action.disconnect">断开</div>
-                    </button>
-                    <button class="control-tile tile-reconnect" onclick="serverReconnect()" data-i18n-title="title.reconnect" title="重新连接服务器">
-                        <div class="tile-icon">
-                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>
-                        </div>
-                        <div class="tile-label" data-i18n="action.reconnect">重连</div>
-                    </button>
-                    <button class="control-tile tile-shutdown" onclick="serverShutdown()" data-i18n-title="title.shutdown" title="关闭代理">
-                        <div class="tile-icon">
-                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/></svg>
-                        </div>
-                        <div class="tile-label" data-i18n="action.shutdown">关闭</div>
-                    </button>
+                <div class="terminal-output" id="terminalOutput">
+                    <div class="terminal-welcome">
+                        <p data-i18n="term.welcome" style="color:var(--ctp-green);">Welcome to ZenithProxy Terminal</p>
+                        <p style="color:var(--ctp-overlay1);"><span data-i18n="term.lastLogin">上次登录:</span> <span
+                                id="lastLogin"></span></p>
+                        <p data-i18n="term.hint" style="color:var(--ctp-overlay0);font-size:0.75rem;margin-top:4px;">输入
+                            'help' 查看可用命令</p>
+                    </div>
                 </div>
+                <div class="terminal-input-wrapper">
+                    <div class="terminal-input-container">
+                        <span class="terminal-prompt"><span id="terminalPromptUser">root</span>@zenith:~$</span>
+                        <input autocomplete="off" autofocus class="terminal-input"
+                               data-i18n-placeholder="term.placeholder" id="terminalInput" placeholder="输入命令..."
+                               spellcheck="false" type="text">
+                    </div>
+                    <div class="autocomplete-dropdown" id="autocompleteDropdown"></div>
+                </div>
+            </div>
+        </section>
 
-                <div class="dashboard-grid">
-                    <div class="stat-card">
-                        <div class="stat-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></div>
-                        <div class="stat-info">
-                            <h3 data-i18n="card.proxyStatus">代理状态</h3>
-                            <p id="proxyStatus" data-i18n="status.disconnected">未连接</p>
-                        </div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div>
-                        <div class="stat-info">
-                            <h3 data-i18n="card.botAccount">机器人账号</h3>
-                            <p id="currentUsername">-</p>
-                        </div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></div>
-                        <div class="stat-info">
-                            <h3 data-i18n="card.proxyAddress">代理地址</h3>
-                            <p id="proxyAddress">-</p>
-                        </div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
-                        <div class="stat-info">
-                            <h3 data-i18n="card.uptime">运行时间</h3>
-                            <p id="uptime">-</p>
-                        </div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
-                        <div class="stat-info">
-                            <h3 data-i18n="card.players">玩家连接</h3>
-                            <p id="playerConnection">-</p>
-                        </div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h7"/></svg></div>
-                        <div class="stat-info">
-                            <h3 data-i18n="card.queue">队列</h3>
-                            <div class="queue-lines">
-                                <p id="queuePosText">-</p>
-                                <p id="queueOnlineText" class="queue-sub"></p>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg></div>
-                        <div class="stat-info">
-                            <h3 data-i18n="card.health">血量 / 饱食度</h3>
-                            <p id="playerStats">-</p>
-                        </div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg></div>
-                        <div class="stat-info">
-                            <h3 data-i18n="card.version">Minecraft 版本</h3>
-                            <p id="mcVersion">-<small id="viaVersion" style="font-size:0.75rem;color:var(--ctp-overlay0);margin-left:6px"></small></p>
-                        </div>
-                    </div>
-                </div>
-                <div class="charts-grid">
-                    <div class="chart-card">
-                        <h3 data-i18n="chart.cpu">CPU 占用</h3>
-                        <canvas id="cpuChart"></canvas>
-                    </div>
-                    <div class="chart-card">
-                        <h3 data-i18n="chart.memory">内存占用</h3>
-                        <canvas id="memoryChart"></canvas>
-                    </div>
-                    <div class="chart-card">
-                        <h3 data-i18n="chart.network">网络流量</h3>
-                        <canvas id="networkChart"></canvas>
-                    </div>
-                    <div class="chart-card">
-                        <h3 data-i18n="chart.latency">延迟波动</h3>
-                        <canvas id="latencyChart"></canvas>
-                        <div class="latency-detail" id="latencyDetail"></div>
-                    </div>
-                </div>
-            </section>
+        <!-- Whitelist Page -->
+        <section class="page" id="players">
+            <div class="page-header">
+                <h2 data-i18n="page.players.title">白名单管理</h2>
+            </div>
 
-            <!-- Terminal + Logs Page -->
-            <section class="page" id="terminal">
-                <div class="terminal-container">
-                    <div class="terminal-titlebar">
-                        <div class="terminal-title-left">
-                            <span class="terminal-title"><span id="terminalUsername">root</span>@zenith</span>
-                            <span class="terminal-status" id="terminalStatus" data-i18n="status.connected">已连接</span>
-                        </div>
-                        <div class="terminal-title-right">
-                            <span class="terminal-counter" id="terminalCmdCount">命令: 0</span>
-                            <span class="terminal-counter" id="terminalLogCount">日志: 0</span>
-                            <button class="btn btn-secondary btn-sm" onclick="exportTerminalContent()" data-i18n="action.export">导出</button>
-                            <button class="btn btn-secondary btn-sm" onclick="clearTerminal()" data-i18n="action.clear">清空</button>
-                        </div>
+            <div class="whitelist-section">
+                <div class="whitelist-header">
+                    <h3 data-i18n="page.players.title">白名单管理</h3>
+                </div>
+                <div class="whitelist-controls">
+                    <div class="whitelist-toggle-row">
+                        <label class="toggle-label" data-i18n="wl.enable">启用白名单</label>
+                        <label class="toggle"><input id="whitelistEnabled" onchange="toggleWhitelist(this.checked)"
+                                                     type="checkbox"><span
+                                class="toggle-slider"></span></label>
                     </div>
-                    <div class="terminal-output" id="terminalOutput">
-                        <div class="terminal-welcome">
-                            <p style="color:var(--ctp-green);" data-i18n="term.welcome">Welcome to ZenithProxy Terminal</p>
-                            <p style="color:var(--ctp-overlay1);"><span data-i18n="term.lastLogin">上次登录:</span> <span id="lastLogin"></span></p>
-                            <p style="color:var(--ctp-overlay0);font-size:0.75rem;margin-top:4px;" data-i18n="term.hint">输入 'help' 查看可用命令</p>
-                        </div>
+                    <div class="whitelist-toggle-row">
+                        <label class="toggle-label" data-i18n="wl.autoAdd">自动添加机器人账户</label>
+                        <label class="toggle"><input id="whitelistAutoAdd" onchange="updateWhitelistConfig()"
+                                                     type="checkbox"><span
+                                class="toggle-slider"></span></label>
                     </div>
-                    <div class="terminal-input-wrapper">
-                        <div class="terminal-input-container">
-                            <span class="terminal-prompt"><span id="terminalPromptUser">root</span>@zenith:~$</span>
-                            <input type="text" class="terminal-input" id="terminalInput" data-i18n-placeholder="term.placeholder" placeholder="输入命令..." autocomplete="off" spellcheck="false" autofocus>
+                    <div class="form-group">
+                        <label data-i18n="wl.kickmsg">踢出消息</label>
+                        <div class="whitelist-kickmsg-row">
+                            <input id="whitelistKickMsg" placeholder="no whitelist?" type="text">
+                            <button class="btn btn-secondary" data-i18n="action.save" onclick="updateWhitelistConfig()">
+                                保存
+                            </button>
                         </div>
-                        <div class="autocomplete-dropdown" id="autocompleteDropdown"></div>
                     </div>
                 </div>
-            </section>
-
-            <!-- Whitelist Page -->
-            <section class="page" id="players">
-                <div class="page-header">
-                    <h2 data-i18n="page.players.title">白名单管理</h2>
+                <div class="whitelist-add-row">
+                    <input data-i18n-placeholder="wl.addPlaceholder" id="whitelistAddInput" placeholder="输入玩家名称"
+                           type="text">
+                    <button class="btn btn-primary" data-i18n="action.add" onclick="addWhitelistPlayer()">添加</button>
                 </div>
-
-                <div class="whitelist-section">
-                    <div class="whitelist-header">
-                        <h3 data-i18n="page.players.title">白名单管理</h3>
-                    </div>
-                    <div class="whitelist-controls">
-                        <div class="whitelist-toggle-row">
-                            <label class="toggle-label" data-i18n="wl.enable">启用白名单</label>
-                            <label class="toggle"><input type="checkbox" id="whitelistEnabled" onchange="toggleWhitelist(this.checked)"><span class="toggle-slider"></span></label>
-                        </div>
-                        <div class="whitelist-toggle-row">
-                            <label class="toggle-label" data-i18n="wl.autoAdd">自动添加机器人账户</label>
-                            <label class="toggle"><input type="checkbox" id="whitelistAutoAdd" onchange="updateWhitelistConfig()"><span class="toggle-slider"></span></label>
-                        </div>
-                        <div class="form-group">
-                            <label data-i18n="wl.kickmsg">踢出消息</label>
-                            <div class="whitelist-kickmsg-row">
-                                <input type="text" id="whitelistKickMsg" placeholder="no whitelist?">
-                                <button class="btn btn-secondary" onclick="updateWhitelistConfig()" data-i18n="action.save">保存</button>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="whitelist-add-row">
-                        <input type="text" id="whitelistAddInput" data-i18n-placeholder="wl.addPlaceholder" placeholder="输入玩家名称">
-                        <button class="btn btn-primary" onclick="addWhitelistPlayer()" data-i18n="action.add">添加</button>
-                    </div>
-                    <div class="whitelist-list" id="whitelistList">
-                        <!-- Whitelist entries are rendered by js/whitelist.js -->
-                    </div>
+                <div class="whitelist-list" id="whitelistList">
+                    <!-- Whitelist entries are rendered by js/whitelist.js -->
                 </div>
-            </section>
-        </main>
-    </div>
+            </div>
+        </section>
+    </main>
+</div>
 
-    <script type="module" src="js/app.js"></script>
+<script src="js/app.js" type="module"></script>
 </body>
 </html>

@@ -27,7 +27,7 @@ public class I18nHandler {
         Map<String, Object> data = new LinkedHashMap<>();
         String lang = config.language == null ? "auto" : config.language;
         data.put("defaultLanguage", lang);
-        data.put("supported", new String[] { "zh", "en" });
+        data.put("supported", new String[]{"zh", "en"});
         data.put("logPhrases", LogPhrases.table());
         HttpHelper.sendJson(ctx, data);
     }

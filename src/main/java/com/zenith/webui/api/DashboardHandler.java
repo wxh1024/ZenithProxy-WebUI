@@ -33,13 +33,75 @@ import static com.zenith.Globals.MC_VERSION;
  * Builds the aggregated dashboard payload as a POJO and lets Gson serialize it.
  */
 public class DashboardHandler {
-    private ScheduledExecutorService streamExecutor;
-
     private final AtomicLong lastNetTime = new AtomicLong(0);
     private final AtomicLong lastBytesIn = new AtomicLong(0);
     private final AtomicLong lastBytesOut = new AtomicLong(0);
+    private ScheduledExecutorService streamExecutor;
 
     public DashboardHandler() {
+    }
+
+    /**
+     * Read total RX/TX byte counters from /proc/net/dev.
+     * Returns {@code {0, 0}} on platforms without procfs (Windows/macOS).
+     */
+    private static long[] readNetworkTotals() {
+        long totalIn = 0, totalOut = 0;
+        try {
+            List<String> lines = Files.readAllLines(Path.of("/proc/net/dev"));
+            for (String line : lines) {
+                line = line.trim();
+                if (line.contains(":") && !line.startsWith("Inter") && !line.startsWith("face")) {
+                    String[] parts = line.split(":");
+                    if (parts.length >= 2) {
+                        String[] stats = parts[1].trim().split("\\s+");
+                        if (stats.length >= 10) {
+                            totalIn += Long.parseLong(stats[0]);
+                            totalOut += Long.parseLong(stats[8]);
+                        }
+                    }
+                }
+            }
+        } catch (Exception ignored) {
+        }
+        return new long[]{totalIn, totalOut};
+    }
+
+    private static double round1(double value) {
+        return Double.isFinite(value) ? Math.round(value * 10.0) / 10.0 : 0;
+    }
+
+    private static double round2(double value) {
+        return Double.isFinite(value) ? Math.round(value * 100.0) / 100.0 : 0;
+    }
+
+    private static QueueData getQueueData() {
+        String server = CONFIG.client.server.address;
+        if (server == null) {
+            return new QueueData(false, 0, 0, "");
+        }
+
+        String serverLower = server.toLowerCase();
+
+        if (serverLower.contains("3c3u.org")) {
+            return new QueueData(
+                    QueueParser.is3cQueue(),
+                    Math.max(QueueParser.positionInQueue, 0),
+                    QueueParser.onlinePlayers,
+                    QueueParser.queuePos
+            );
+        }
+
+        if (serverLower.contains("2b2t.org")) {
+            return new QueueData(
+                    Proxy.getInstance().isInQueue(),
+                    Proxy.getInstance().getQueuePosition(),
+                    0,
+                    ""
+            );
+        }
+
+        return new QueueData(false, 0, 0, "");
     }
 
     public void handleDashboard(ChannelHandlerContext ctx) {
@@ -67,7 +129,8 @@ public class DashboardHandler {
             try {
                 if (WebUIPlugin.dashboardSseClients.isEmpty()) return;
                 pushDashboardHeartbeat();
-            } catch (Exception ignored) {}
+            } catch (Exception ignored) {
+            }
         }, 0, 1, TimeUnit.SECONDS);
     }
 
@@ -96,7 +159,9 @@ public class DashboardHandler {
                 }
                 try {
                     ch.writeAndFlush(new io.netty.handler.codec.http.DefaultHttpContent(template.retainedDuplicate()))
-                        .addListener(f -> { if (!f.isSuccess()) ch.close(); });
+                            .addListener(f -> {
+                                if (!f.isSuccess()) ch.close();
+                            });
                 } catch (Exception e) {
                     ch.close();
                     dead.add(ch);
@@ -125,7 +190,8 @@ public class DashboardHandler {
             try {
                 data.connected = proxy.isConnected();
                 data.uptime = Math.max(0L, System.currentTimeMillis() - proxy.getStartTime());
-            } catch (Exception ignored) {}
+            } catch (Exception ignored) {
+            }
         }
 
         QueueData qd = getQueueData();
@@ -141,7 +207,8 @@ public class DashboardHandler {
                 var protoVer = client.getProtocolVersion();
                 if (protoVer != null) data.viaVersion = "via " + protoVer.getName();
             }
-        } catch (Exception ignored) {}
+        } catch (Exception ignored) {
+        }
 
         data.username = CONFIG.authentication.username != null ? CONFIG.authentication.username : "";
         String proxyAddress = CONFIG.server.getProxyAddress();
@@ -151,10 +218,11 @@ public class DashboardHandler {
         double cpuLoad = -1;
         try {
             java.lang.management.OperatingSystemMXBean osBean =
-                java.lang.management.ManagementFactory.getOperatingSystemMXBean();
+                    java.lang.management.ManagementFactory.getOperatingSystemMXBean();
             double load = osBean.getSystemLoadAverage();
             if (load >= 0 && Double.isFinite(load)) cpuLoad = round2(load);
-        } catch (Exception ignored) {}
+        } catch (Exception ignored) {
+        }
         data.system.cpuLoad = cpuLoad;
 
         Runtime rt = Runtime.getRuntime();
@@ -186,7 +254,7 @@ public class DashboardHandler {
             for (var session : proxy.getActiveConnections().getArray()) {
                 if (session != null) {
                     data.latency.players.add(
-                        new DashboardData.PlayerPing(session.getName(), session.getPing()));
+                            new DashboardData.PlayerPing(session.getName(), session.getPing()));
                 }
             }
         } catch (Exception ignored) {
@@ -212,67 +280,6 @@ public class DashboardHandler {
         return data;
     }
 
-    /**
-     * Read total RX/TX byte counters from /proc/net/dev.
-     * Returns {@code {0, 0}} on platforms without procfs (Windows/macOS).
-     */
-    private static long[] readNetworkTotals() {
-        long totalIn = 0, totalOut = 0;
-        try {
-            List<String> lines = Files.readAllLines(Path.of("/proc/net/dev"));
-            for (String line : lines) {
-                line = line.trim();
-                if (line.contains(":") && !line.startsWith("Inter") && !line.startsWith("face")) {
-                    String[] parts = line.split(":");
-                    if (parts.length >= 2) {
-                        String[] stats = parts[1].trim().split("\\s+");
-                        if (stats.length >= 10) {
-                            totalIn += Long.parseLong(stats[0]);
-                            totalOut += Long.parseLong(stats[8]);
-                        }
-                    }
-                }
-            }
-        } catch (Exception ignored) {}
-        return new long[]{totalIn, totalOut};
-    }
-
-    private static double round1(double value) {
-        return Double.isFinite(value) ? Math.round(value * 10.0) / 10.0 : 0;
-    }
-
-    private static double round2(double value) {
-        return Double.isFinite(value) ? Math.round(value * 100.0) / 100.0 : 0;
-    }
-
-    private record QueueData(boolean inQueue, int position, int onlinePlayers, String queuePos) {}
-
-    private static QueueData getQueueData() {
-        String server = CONFIG.client.server.address;
-        if (server == null) {
-            return new QueueData(false, 0, 0, "");
-        }
-
-        String serverLower = server.toLowerCase();
-
-        if (serverLower.contains("3c3u.org")) {
-            return new QueueData(
-                QueueParser.is3cQueue(),
-                Math.max(QueueParser.positionInQueue, 0),
-                QueueParser.onlinePlayers,
-                QueueParser.queuePos
-            );
-        }
-
-        if (serverLower.contains("2b2t.org")) {
-            return new QueueData(
-                Proxy.getInstance().isInQueue(),
-                Proxy.getInstance().getQueuePosition(),
-                0,
-                ""
-            );
-        }
-
-        return new QueueData(false, 0, 0, "");
+    private record QueueData(boolean inQueue, int position, int onlinePlayers, String queuePos) {
     }
 }

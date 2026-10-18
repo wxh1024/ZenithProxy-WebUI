@@ -292,7 +292,7 @@ export async function init() {
     bootstrapped = true;
 
     try {
-        const res = await fetch('/api/i18n', { credentials: 'include' });
+        const res = await fetch('/api/i18n', {credentials: 'include'});
         if (res.ok) {
             const data = await res.json();
             serverDefault = data.defaultLanguage || 'auto';
@@ -321,10 +321,11 @@ export function setLanguage(lang) {
     currentLang = normalized;
     try {
         localStorage.setItem(STORAGE_KEY, normalized);
-    } catch { /* private mode — ignore */ }
+    } catch { /* private mode — ignore */
+    }
     document.documentElement.lang = normalized === 'zh' ? 'zh-CN' : 'en';
     applyTranslations();
-    window.dispatchEvent(new CustomEvent('webui:languagechange', { detail: { lang: normalized } }));
+    window.dispatchEvent(new CustomEvent('webui:languagechange', {detail: {lang: normalized}}));
 }
 
 export function getLanguage() {
@@ -381,8 +382,8 @@ export function formatUptime(ms) {
     const h = Math.floor(total / 3600) % 24;
     const d = Math.floor(total / 86400);
     return d > 0
-        ? t('uptime.d', { d, h, m })
-        : t('uptime.h', { h, m, s });
+        ? t('uptime.d', {d, h, m})
+        : t('uptime.h', {h, m, s});
 }
 
 /**

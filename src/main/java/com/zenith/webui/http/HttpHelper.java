@@ -16,23 +16,24 @@ import java.nio.charset.StandardCharsets;
  * No response body is assembled by hand.
  */
 public final class HttpHelper {
-    private HttpHelper() {}
-
-    /** Shared Gson instance used for all JSON responses. */
+    /**
+     * Shared Gson instance used for all JSON responses.
+     */
     public static final Gson GSON = new GsonBuilder().disableHtmlEscaping().create();
-
     /**
      * Gson variant that keeps {@code null} fields. The dashboard payload relies on
      * explicit nulls (e.g. {@code player.health} when the bot is offline), which the
      * default Gson would silently drop.
      */
     public static final Gson GSON_NULLS = new GsonBuilder()
-        .disableHtmlEscaping()
-        .serializeNulls()
-        .create();
-
+            .disableHtmlEscaping()
+            .serializeNulls()
+            .create();
     private static final String CONTENT_TYPE_JSON = "application/json; charset=utf-8";
     private static final String CONTENT_TYPE_TEXT = "text/plain; charset=utf-8";
+
+    private HttpHelper() {
+    }
 
     public static void sendJson(ChannelHandlerContext ctx, Object obj) {
         sendJson(ctx, obj, GSON);
@@ -40,15 +41,19 @@ public final class HttpHelper {
 
     public static void sendJson(ChannelHandlerContext ctx, Object obj, Gson gson) {
         writeBody(ctx, HttpResponseStatus.OK, gson.toJson(obj).getBytes(StandardCharsets.UTF_8),
-            CONTENT_TYPE_JSON);
+                CONTENT_TYPE_JSON);
     }
 
-    /** Serialize {@code payload} into a complete Server-Sent Events frame ("data: {...}\n\n"). */
+    /**
+     * Serialize {@code payload} into a complete Server-Sent Events frame ("data: {...}\n\n").
+     */
     public static String sseFrame(Object payload) {
         return sseFrame(payload, GSON);
     }
 
-    /** SSE frame built with a specific Gson configuration (e.g. {@link #GSON_NULLS}). */
+    /**
+     * SSE frame built with a specific Gson configuration (e.g. {@link #GSON_NULLS}).
+     */
     public static String sseFrame(Object payload, Gson gson) {
         return "data: " + gson.toJson(payload) + "\n\n";
     }
@@ -59,10 +64,12 @@ public final class HttpHelper {
 
     public static void sendNotFound(ChannelHandlerContext ctx) {
         writeBody(ctx, HttpResponseStatus.NOT_FOUND,
-            "404 Not Found".getBytes(StandardCharsets.UTF_8), CONTENT_TYPE_TEXT);
+                "404 Not Found".getBytes(StandardCharsets.UTF_8), CONTENT_TYPE_TEXT);
     }
 
-    /** Send a plain-text status response (405 Method Not Allowed and friends). */
+    /**
+     * Send a plain-text status response (405 Method Not Allowed and friends).
+     */
     public static void sendError(ChannelHandlerContext ctx, HttpResponseStatus status, String message) {
         writeBody(ctx, status, message.getBytes(StandardCharsets.UTF_8), CONTENT_TYPE_TEXT);
     }

@@ -4,6 +4,7 @@ import com.zenith.network.client.ClientSession;
 import com.zenith.network.codec.PacketHandler;
 import org.geysermc.mcprotocollib.auth.GameProfile;
 import org.geysermc.mcprotocollib.protocol.packet.login.serverbound.ServerboundHelloPacket;
+
 import java.nio.charset.StandardCharsets;
 import java.util.UUID;
 
@@ -12,7 +13,7 @@ import java.util.UUID;
  * to the standard Mojang offline format (UUID.nameUUIDFromBytes("OfflinePlayer:<username>")).
  * This fixes conflicts on hybrid-auth servers like the 3C network where the
  * server expects the standard offline UUID format.
- *
+ * <p>
  * Original author: CandyMagicShow (3CNewAuthBypasser plugin)
  */
 public class AuthBypasserUuidHandler implements PacketHandler<ServerboundHelloPacket, ClientSession> {

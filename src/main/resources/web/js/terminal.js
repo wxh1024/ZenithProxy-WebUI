@@ -2,13 +2,18 @@
  * Terminal page — log stream, scrollback buffer, command input and export.
  */
 
-import { apiCall, createStream } from './api.js';
-import { state, LIMITS, onLanguageChange } from './state.js';
-import { t, translateLog, localeTag } from './i18n.js';
-import { escapeHtml, showNotification } from './util.js';
+import {apiCall, createStream} from './api.js';
+import {LIMITS, onLanguageChange, state} from './state.js';
+import {localeTag, t, translateLog} from './i18n.js';
+import {escapeHtml, showNotification} from './util.js';
 import {
-    hideAutocomplete, isAutocompleteVisible, hasSelection, navigateAutocomplete,
-    selectAutocomplete, selectAutocompleteAt, showAutocomplete,
+    hasSelection,
+    hideAutocomplete,
+    isAutocompleteVisible,
+    navigateAutocomplete,
+    selectAutocomplete,
+    selectAutocompleteAt,
+    showAutocomplete,
 } from './commands.js';
 
 let stopLogStream = null;
@@ -106,7 +111,7 @@ function renderWelcomeTimestamp() {
 }
 
 export function updateTerminalCounts() {
-    const text = t('term.counts', { c: state.terminalCmdCount, l: state.terminalLogCount });
+    const text = t('term.counts', {c: state.terminalCmdCount, l: state.terminalLogCount});
     const [cmdPart, logPart] = text.split('·').map(s => s.trim());
     const cmdEl = document.getElementById('terminalCmdCount');
     const logEl = document.getElementById('terminalLogCount');
@@ -136,7 +141,7 @@ export function exportTerminalContent() {
     }
     lines.push('', '='.repeat(60), t('term.export.end'));
     const a = document.createElement('a');
-    a.href = URL.createObjectURL(new Blob([lines.join('\n')], { type: 'text/plain;charset=utf-8' }));
+    a.href = URL.createObjectURL(new Blob([lines.join('\n')], {type: 'text/plain;charset=utf-8'}));
     a.download = `zenithproxy-terminal-${new Date().toISOString().split('T')[0]}.txt`;
     a.click();
     showNotification(t('term.exported'), 'success');
@@ -152,7 +157,7 @@ export async function sendTerminalCommand(command) {
     updateTerminalCounts();
     appendTerminalLine(`${state.username}@zenith:~$ ${command}`, 'terminal-line-command');
 
-    const result = await apiCall('/commands', 'POST', { command });
+    const result = await apiCall('/commands', 'POST', {command});
     if (!result) {
         appendTerminalLine(t('term.requestFailed'), 'terminal-line-error');
         return;
@@ -197,7 +202,7 @@ export function initTerminal() {
         setTimeout(() => {
             state.terminalScrollLocked = out.scrollHeight - out.scrollTop - out.clientHeight < 60;
         }, 0);
-    }, { passive: true });
+    }, {passive: true});
 
     out.addEventListener('keydown', e => {
         if (e.key === 'PageUp') {
@@ -217,11 +222,30 @@ export function initTerminal() {
 
     el.addEventListener('keydown', e => {
         if (isAutocompleteVisible()) {
-            if (e.key === 'ArrowDown') { e.preventDefault(); navigateAutocomplete(1); return; }
-            if (e.key === 'ArrowUp') { e.preventDefault(); navigateAutocomplete(-1); return; }
-            if (e.key === 'Tab') { e.preventDefault(); selectAutocomplete(); return; }
-            if (e.key === 'Escape') { hideAutocomplete(); return; }
-            if (e.key === 'Enter' && hasSelection()) { e.preventDefault(); selectAutocomplete(); return; }
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                navigateAutocomplete(1);
+                return;
+            }
+            if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                navigateAutocomplete(-1);
+                return;
+            }
+            if (e.key === 'Tab') {
+                e.preventDefault();
+                selectAutocomplete();
+                return;
+            }
+            if (e.key === 'Escape') {
+                hideAutocomplete();
+                return;
+            }
+            if (e.key === 'Enter' && hasSelection()) {
+                e.preventDefault();
+                selectAutocomplete();
+                return;
+            }
         }
         if (e.key === 'Enter') {
             e.preventDefault();

@@ -3,17 +3,20 @@
  * feature-module wiring.
  */
 
-import { fetchSession, logout } from './api.js';
-import { state, emitLanguageChange } from './state.js';
-import { init as initI18n, applyTranslations, setLanguage, getLanguage, t } from './i18n.js';
-import { initDashboard, activateDashboard, stopDashboardStream, loadDashboard } from './dashboard.js';
-import { initTerminalPage, activateTerminal, initLogStream, clearTerminal, exportTerminalContent } from './terminal.js';
-import { loadCommands } from './commands.js';
+import {fetchSession, logout} from './api.js';
+import {emitLanguageChange, state} from './state.js';
+import {applyTranslations, getLanguage, init as initI18n, setLanguage, t} from './i18n.js';
+import {activateDashboard, initDashboard, loadDashboard, stopDashboardStream} from './dashboard.js';
+import {activateTerminal, clearTerminal, exportTerminalContent, initLogStream, initTerminalPage} from './terminal.js';
+import {loadCommands} from './commands.js';
 import {
-    initWhitelist, loadWhitelist, toggleWhitelist, addWhitelistPlayer,
+    addWhitelistPlayer,
+    initWhitelist,
+    loadWhitelist,
+    toggleWhitelist,
     updateWhitelistConfig,
 } from './whitelist.js';
-import { serverConnect, serverDisconnect, serverReconnect, serverShutdown } from './server.js';
+import {serverConnect, serverDisconnect, serverReconnect, serverShutdown} from './server.js';
 
 // ── Navigation ──────────────────────────────────────────────────────
 
@@ -116,4 +119,4 @@ document.addEventListener('DOMContentLoaded', async () => {
     activateDashboard();
 });
 
-export { navigateTo, clearTerminal, exportTerminalContent, loadDashboard, t };
+export {navigateTo, clearTerminal, exportTerminalContent, loadDashboard, t};

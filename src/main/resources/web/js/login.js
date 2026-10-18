@@ -6,7 +6,7 @@
  * is a public endpoint.
  */
 
-import { init as initI18n, applyTranslations, setLanguage, getLanguage, t } from './i18n.js';
+import {applyTranslations, getLanguage, init as initI18n, setLanguage, t} from './i18n.js';
 
 const form = document.getElementById('loginForm');
 const errorMessage = document.getElementById('errorMessage');
@@ -21,7 +21,7 @@ function showError(message) {
 /** Skips the login form entirely when a valid session cookie already exists. */
 async function checkAuthStatus() {
     try {
-        const response = await fetch('/api/auth/status', { credentials: 'include' });
+        const response = await fetch('/api/auth/status', {credentials: 'include'});
         const data = await response.json();
         if (data.authenticated) window.location.href = '/';
     } catch {
@@ -42,8 +42,8 @@ form.addEventListener('submit', async e => {
     try {
         const response = await fetch('/api/auth/login', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username, password }),
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({username, password}),
             credentials: 'include',
         });
         const data = await response.json();

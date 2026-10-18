@@ -42,11 +42,11 @@
 ./gradlew shadowJar
 ```
 
-输出文件：`build/libs/ZenithProxy-WebUI-1.5.0.jar`
+输出文件：`build/libs/ZenithProxy-WebUI-1.5.1.jar`
 
 ### 2. 安装插件
 
-将 `ZenithProxy-WebUI-1.5.0.jar` 复制到 ZenithProxy 的 `plugins/` 目录。
+将 `ZenithProxy-WebUI-1.5.1.jar` 复制到 ZenithProxy 的 `plugins/` 目录。
 
 ### 3. 配置文件
 
@@ -83,33 +83,34 @@ http://localhost:8080
 
 ## 配置选项
 
-| 选项 | 默认值 | 说明 |
-|------|--------|------|
-| `enabled` | true | 是否在插件加载时自动启动 Web UI |
-| `port` | 8080 | HTTP 服务器端口 |
-| `language` | auto | 默认界面语言：`auto`（跟随浏览器）、`zh` 或 `en` |
-| `auth.enabled` | true | 是否启用登录认证 |
-| `auth.username` | admin | 登录用户名 |
-| `auth.password` | 随机生成 | 登录密码（首次启动自动生成并输出到日志） |
+| 选项            | 默认值   | 说明                                             |
+|-----------------|----------|--------------------------------------------------|
+| `enabled`       | true     | 是否在插件加载时自动启动 Web UI                  |
+| `port`          | 8080     | HTTP 服务器端口                                  |
+| `language`      | auto     | 默认界面语言：`auto`（跟随浏览器）、`zh` 或 `en` |
+| `auth.enabled`  | true     | 是否启用登录认证                                 |
+| `auth.username` | admin    | 登录用户名                                       |
+| `auth.password` | 随机生成 | 登录密码（首次启动自动生成并输出到日志）         |
 
 > 要禁用认证，将 `auth.enabled` 设为 `false` 即可。
 
 ## API 端点
 
-| 端点 | 方法 | 认证 | 说明 |
-|------|------|------|------|
-| `/api/auth/login` | POST | 否 | 登录 `{"username": "...", "password": "..."}` → 设置 HttpOnly Cookie |
-| `/api/auth/logout` | POST | 否 | 清除认证 Cookie |
-| `/api/auth/status` | GET | 否 | 返回 `{"authenticated": true/false, "username": "..."}` |
-| `/api/dashboard` | GET | 是 | 聚合仪表盘数据（连接状态、队列、版本、运行时间、玩家、CPU、内存、网络、延迟） |
-| `/api/dashboard/stream` | GET | 是 | SSE 实时推送仪表盘数据（每秒） |
-| `/api/commands` | GET | 是 | 获取可用命令列表 |
-| `/api/commands` | POST | 是 | 执行命令 `{"command": "..."}` |
-| `/api/logs/stream` | GET | 是 | SSE 实时日志推送（推送最近 500 条历史 + 实时日志） |
-| `/api/whitelist` | GET | 是 | 获取白名单状态、列表、配置信息 |
-| `/api/whitelist` | POST | 是 | 白名单管理 `{"action": "toggle/add/remove/updateConfig", ...}` |
+| 端点                    | 方法 | 认证 | 说明                                                                          |
+|-------------------------|------|------|-------------------------------------------------------------------------------|
+| `/api/auth/login`       | POST | 否   | 登录 `{"username": "...", "password": "..."}` → 设置 HttpOnly Cookie          |
+| `/api/auth/logout`      | POST | 否   | 清除认证 Cookie                                                               |
+| `/api/auth/status`      | GET  | 否   | 返回 `{"authenticated": true/false, "username": "..."}`                       |
+| `/api/dashboard`        | GET  | 是   | 聚合仪表盘数据（连接状态、队列、版本、运行时间、玩家、CPU、内存、网络、延迟） |
+| `/api/dashboard/stream` | GET  | 是   | SSE 实时推送仪表盘数据（每秒）                                                |
+| `/api/commands`         | GET  | 是   | 获取可用命令列表                                                              |
+| `/api/commands`         | POST | 是   | 执行命令 `{"command": "..."}`                                                 |
+| `/api/logs/stream`      | GET  | 是   | SSE 实时日志推送（推送最近 500 条历史 + 实时日志）                            |
+| `/api/whitelist`        | GET  | 是   | 获取白名单状态、列表、配置信息                                                |
+| `/api/whitelist`        | POST | 是   | 白名单管理 `{"action": "toggle/add/remove/updateConfig", ...}`                |
 
-> `/api/status`, `/api/players`, `/api/queue`, `/api/system`, `/api/latency` 等独立端点已合并到 `/api/dashboard`（聚合返回）。前端不依赖这些独立端点。
+> `/api/status`, `/api/players`, `/api/queue`, `/api/system`, `/api/latency` 等独立端点已合并到 `/api/dashboard`
+> （聚合返回）。前端不依赖这些独立端点。
 
 ## 国际化
 
@@ -127,29 +128,29 @@ http://localhost:8080
 
 ## 命令
 
-| 命令 | 说明 |
-|------|------|
-| `webui enable` | 启用 Web UI（可重复调用，幂等安全） |
-| `webui disable` | 禁用 Web UI |
-| `webui status` | 查看 Web UI 状态 |
+| 命令            | 说明                                |
+|-----------------|-------------------------------------|
+| `webui enable`  | 启用 Web UI（可重复调用，幂等安全） |
+| `webui disable` | 禁用 Web UI                         |
+| `webui status`  | 查看 Web UI 状态                    |
 
 ## 前端页面
 
-| 页面 | 说明 |
-|------|------|
-| 仪表板 | 代理状态、服务器控制按钮、系统资源图表 |
-| 配置管理 | 认证/客户端/服务器配置编辑 |
-| 终端日志 | 命令执行、日志查看、导出 |
-| 玩家列表 | 玩家管理、白名单管理 |
+| 页面     | 说明                                   |
+|----------|----------------------------------------|
+| 仪表板   | 代理状态、服务器控制按钮、系统资源图表 |
+| 配置管理 | 认证/客户端/服务器配置编辑             |
+| 终端日志 | 命令执行、日志查看、导出               |
+| 玩家列表 | 玩家管理、白名单管理                   |
 
 ## 前端快捷键
 
-| 快捷键 | 说明 |
-|--------|------|
-| `Tab` | 命令自动补全 |
+| 快捷键    | 说明         |
+|-----------|--------------|
+| `Tab`     | 命令自动补全 |
 | `↑` / `↓` | 浏览命令历史 |
-| `Ctrl+L` | 清空终端 |
-| `Ctrl+C` | 取消当前输入 |
+| `Ctrl+L`  | 清空终端     |
+| `Ctrl+C`  | 取消当前输入 |
 
 ## 技术栈
 
@@ -178,10 +179,12 @@ http://localhost:8080
 ### 忘记密码
 
 查看 ZenithProxy 启动日志中的首次生成密码提示：
+
 ```
 Created WebUI config with defaults (random password generated)
 Default username: admin, password: xxxxxxxx
 ```
+
 或直接编辑 `plugins/webui/config.json` 中的 `auth.password`。
 
 ### 命令执行失败
@@ -231,19 +234,19 @@ src/main/resources/
 
 ## 前端模块划分
 
-| 模块 | 职责 |
-|------|------|
-| `js/i18n.js` | 翻译表、语言解析、`t()`、日志翻译 |
-| `js/api.js` | fetch 封装、SSE（指数退避重连）、会话辅助 |
-| `js/state.js` | 共享可变状态（日志、历史、连接状态、限额） |
-| `js/dashboard.js` | 状态卡片、队列渲染、四个 Chart.js 图表 |
-| `js/commands.js` | 命令发现与模糊补全打分 |
-| `js/terminal.js` | 日志流、滚动缓冲、命令输入、导出 |
-| `js/whitelist.js` | 白名单增删改查 |
-| `js/server.js` | 连接/断开/重连/关闭磁贴 |
-| `js/util.js` | HTML 转义、Toast、延迟着色 |
-| `js/app.js` | 入口：认证、导航、语言切换、模块装配 |
-| `js/login.js` | 登录页控制器 |
+| 模块              | 职责                                       |
+|-------------------|--------------------------------------------|
+| `js/i18n.js`      | 翻译表、语言解析、`t()`、日志翻译          |
+| `js/api.js`       | fetch 封装、SSE（指数退避重连）、会话辅助  |
+| `js/state.js`     | 共享可变状态（日志、历史、连接状态、限额） |
+| `js/dashboard.js` | 状态卡片、队列渲染、四个 Chart.js 图表     |
+| `js/commands.js`  | 命令发现与模糊补全打分                     |
+| `js/terminal.js`  | 日志流、滚动缓冲、命令输入、导出           |
+| `js/whitelist.js` | 白名单增删改查                             |
+| `js/server.js`    | 连接/断开/重连/关闭磁贴                    |
+| `js/util.js`      | HTML 转义、Toast、延迟着色                 |
+| `js/app.js`       | 入口：认证、导航、语言切换、模块装配       |
+| `js/login.js`     | 登录页控制器                               |
 
 模块之间不循环引用：共享数据统一放在 `state.js` 中按实时绑定导入。
 静态资源优先从 classpath（`/web/`）读取，再回退到 `plugins/webui/web/`，
@@ -258,8 +261,8 @@ src/main/resources/
 
 ```bash
 # 同步修改 build.gradle.kts 与 zenithproxy.plugin.json 中的 version
-git commit -am "chore: release v1.5.0"
-git tag v1.5.0
+git commit -am "chore: release v1.5.1"
+git tag v1.5.1
 git push origin main --tags
 ```
 

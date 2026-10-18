@@ -56,7 +56,7 @@ public class WhitelistHandler {
                         }
                         CONFIG.server.extra.whitelist.enable = json.get("enabled").getAsBoolean();
                         HttpHelper.sendJson(ctx, Map.of("success", true, "enabled",
-                            CONFIG.server.extra.whitelist.enable));
+                                CONFIG.server.extra.whitelist.enable));
                     }
                     case "add" -> {
                         if (!json.has("username")) {
@@ -67,10 +67,10 @@ public class WhitelistHandler {
                         var result = PLAYER_LISTS.getWhitelist().add(username);
                         if (result.isPresent()) {
                             HttpHelper.sendJson(ctx, Map.of("success", true, "username",
-                                result.get().getUsername(), "uuid", result.get().getUuid().toString()));
+                                    result.get().getUsername(), "uuid", result.get().getUuid().toString()));
                         } else {
                             HttpHelper.sendJson(ctx, Map.of("success", false, "error",
-                                "无法解析用户名 / Could not resolve username"));
+                                    "无法解析用户名 / Could not resolve username"));
                         }
                     }
                     case "remove" -> {
@@ -90,7 +90,7 @@ public class WhitelistHandler {
                         HttpHelper.sendJson(ctx, Map.of("success", true));
                     }
                     default -> HttpHelper.sendJson(ctx,
-                        Map.of("success", false, "error", "Unknown action: " + action));
+                            Map.of("success", false, "error", "Unknown action: " + action));
                 }
             } catch (Exception e) {
                 HttpHelper.sendJson(ctx, Map.of("success", false, "error", "Whitelist operation failed"));

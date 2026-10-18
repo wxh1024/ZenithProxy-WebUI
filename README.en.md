@@ -43,11 +43,11 @@ or build it locally (requires JDK 21 and network access to `maven.2b2t.vc`):
 ./gradlew shadowJar
 ```
 
-Output: `build/libs/ZenithProxy-WebUI-1.5.0.jar`
+Output: `build/libs/ZenithProxy-WebUI-1.5.1.jar`
 
 ### 2. Install
 
-Copy `ZenithProxy-WebUI-1.5.0.jar` into the ZenithProxy `plugins/` directory.
+Copy `ZenithProxy-WebUI-1.5.1.jar` into the ZenithProxy `plugins/` directory.
 
 ### 3. Configuration
 
@@ -82,14 +82,14 @@ http://localhost:8080
 
 ## Configuration options
 
-| Option | Default | Description |
-|------|---------|-------------|
-| `enabled` | `true` | Start the Web UI server automatically on plugin load |
-| `port` | `8080` | HTTP listen port |
-| `language` | `auto` | Default UI language: `auto` (follow the browser), `zh` or `en` |
-| `auth.enabled` | `true` | Require a login |
-| `auth.username` | `admin` | Login username |
-| `auth.password` | random | Login password (generated and logged on first run) |
+| Option          | Default | Description                                                    |
+|-----------------|---------|----------------------------------------------------------------|
+| `enabled`       | `true`  | Start the Web UI server automatically on plugin load           |
+| `port`          | `8080`  | HTTP listen port                                               |
+| `language`      | `auto`  | Default UI language: `auto` (follow the browser), `zh` or `en` |
+| `auth.enabled`  | `true`  | Require a login                                                |
+| `auth.username` | `admin` | Login username                                                 |
+| `auth.password` | random  | Login password (generated and logged on first run)             |
 
 > To disable authentication, set `auth.enabled` to `false`.
 
@@ -111,36 +111,36 @@ always sees the untranslated original — there is no Chinese-only translation i
 
 ## API endpoints
 
-| Endpoint | Method | Auth | Description |
-|----------|--------|------|-------------|
-| `/api/i18n` | GET | No | Default language, supported languages and the log phrase table |
-| `/api/auth/login` | POST | No | Login with `{"username", "password"}` → sets an HttpOnly cookie |
-| `/api/auth/logout` | POST | No | Clears the auth cookie |
-| `/api/auth/status` | GET | No | `{"authenticated": bool, "username": "..."}` |
-| `/api/dashboard` | GET | Yes | Aggregated dashboard payload (connection, queue, version, uptime, players, CPU, memory, network, latency) |
-| `/api/dashboard/stream` | GET | Yes | SSE stream, one dashboard frame per second |
-| `/api/commands` | GET | Yes | Lists available command names, aliases and descriptions |
-| `/api/commands` | POST | Yes | Executes `{"command": "..."}` and returns the parsed output |
-| `/api/logs/stream` | GET | Yes | SSE log stream (last 500 entries, then live) |
-| `/api/whitelist` | GET | Yes | Whitelist status, entries, kick message, auto-add flag |
-| `/api/whitelist` | POST | Yes | `{"action": "toggle/add/remove/updateConfig", ...}` |
+| Endpoint                | Method | Auth | Description                                                                                               |
+|-------------------------|--------|------|-----------------------------------------------------------------------------------------------------------|
+| `/api/i18n`             | GET    | No   | Default language, supported languages and the log phrase table                                            |
+| `/api/auth/login`       | POST   | No   | Login with `{"username", "password"}` → sets an HttpOnly cookie                                           |
+| `/api/auth/logout`      | POST   | No   | Clears the auth cookie                                                                                    |
+| `/api/auth/status`      | GET    | No   | `{"authenticated": bool, "username": "..."}`                                                              |
+| `/api/dashboard`        | GET    | Yes  | Aggregated dashboard payload (connection, queue, version, uptime, players, CPU, memory, network, latency) |
+| `/api/dashboard/stream` | GET    | Yes  | SSE stream, one dashboard frame per second                                                                |
+| `/api/commands`         | GET    | Yes  | Lists available command names, aliases and descriptions                                                   |
+| `/api/commands`         | POST   | Yes  | Executes `{"command": "..."}` and returns the parsed output                                               |
+| `/api/logs/stream`      | GET    | Yes  | SSE log stream (last 500 entries, then live)                                                              |
+| `/api/whitelist`        | GET    | Yes  | Whitelist status, entries, kick message, auto-add flag                                                    |
+| `/api/whitelist`        | POST   | Yes  | `{"action": "toggle/add/remove/updateConfig", ...}`                                                       |
 
 ## Frontend pages
 
-| Page | Description |
-|------|-------------|
+| Page      | Description                                              |
+|-----------|----------------------------------------------------------|
 | Dashboard | Proxy status, server control tiles, system metric charts |
-| Terminal | Command execution, live logs, export |
-| Whitelist | Whitelist toggle, player list, kick message, auto-add |
+| Terminal  | Command execution, live logs, export                     |
+| Whitelist | Whitelist toggle, player list, kick message, auto-add    |
 
 ## Keyboard shortcuts
 
-| Shortcut | Description |
-|----------|-------------|
-| `Tab` | Command autocomplete |
-| `↑` / `↓` | Browse command history |
-| `Ctrl+L` | Clear the terminal |
-| `Ctrl+C` | Cancel the current input |
+| Shortcut  | Description              |
+|-----------|--------------------------|
+| `Tab`     | Command autocomplete     |
+| `↑` / `↓` | Browse command history   |
+| `Ctrl+L`  | Clear the terminal       |
+| `Ctrl+C`  | Cancel the current input |
 
 ## Tech stack
 
@@ -153,19 +153,19 @@ always sees the untranslated original — there is no Chinese-only translation i
 
 The frontend is split into ES modules under `src/main/resources/web/js/`:
 
-| Module | Responsibility |
-|--------|----------------|
-| `i18n.js` | Translation tables, language resolution, `t()`, log-line translation |
-| `api.js` | `fetch` wrapper, SSE helper with exponential-backoff reconnect, session helpers |
-| `state.js` | Shared mutable state (logs, history, connection flags, limits) |
-| `dashboard.js` | Status cards, queue rendering, the four Chart.js charts |
-| `commands.js` | Command discovery and fuzzy autocomplete scoring |
-| `terminal.js` | Log stream, scrollback, command input, export |
-| `whitelist.js` | Whitelist CRUD |
-| `server.js` | Connect/disconnect/reconnect/shutdown tiles |
-| `util.js` | HTML escaping, toasts, ping colouring |
-| `app.js` | Entry point: auth gate, navigation, language switcher, module wiring |
-| `login.js` | Login page controller |
+| Module         | Responsibility                                                                  |
+|----------------|---------------------------------------------------------------------------------|
+| `i18n.js`      | Translation tables, language resolution, `t()`, log-line translation            |
+| `api.js`       | `fetch` wrapper, SSE helper with exponential-backoff reconnect, session helpers |
+| `state.js`     | Shared mutable state (logs, history, connection flags, limits)                  |
+| `dashboard.js` | Status cards, queue rendering, the four Chart.js charts                         |
+| `commands.js`  | Command discovery and fuzzy autocomplete scoring                                |
+| `terminal.js`  | Log stream, scrollback, command input, export                                   |
+| `whitelist.js` | Whitelist CRUD                                                                  |
+| `server.js`    | Connect/disconnect/reconnect/shutdown tiles                                     |
+| `util.js`      | HTML escaping, toasts, ping colouring                                           |
+| `app.js`       | Entry point: auth gate, navigation, language switcher, module wiring            |
+| `login.js`     | Login page controller                                                           |
 
 Modules never import each other cyclically — shared values live in `state.js` and are imported
 as live bindings. Static assets are served from the classpath (`/web/`) first and fall back to
@@ -251,8 +251,8 @@ src/main/resources/
 
 ```bash
 # bump the version in BOTH build.gradle.kts and zenithproxy.plugin.json
-git commit -am "chore: release v1.5.0"
-git tag v1.5.0
+git commit -am "chore: release v1.5.1"
+git tag v1.5.1
 git push origin main --tags
 ```
 

@@ -18,32 +18,114 @@ import java.nio.charset.StandardCharsets;
  * on HTTP keep-alive connections.
  */
 public class AuthHandler {
-    private final AuthManager authManager;
-    private final WebUIConfig config;
-
-    /** Per-channel auth cache: avoids re-validating token on every request over the same TCP connection. */
+    /**
+     * Per-channel auth cache: avoids re-validating token on every request over the same TCP connection.
+     */
     private static final AttributeKey<Long> AUTH_CACHE_KEY = AttributeKey.valueOf("webui_auth_ts");
-    /** Auth generation the cached result belongs to — bumped on logout/password change. */
+    /**
+     * Auth generation the cached result belongs to — bumped on logout/password change.
+     */
     private static final AttributeKey<Long> AUTH_EPOCH_KEY = AttributeKey.valueOf("webui_auth_epoch");
-    /** Re-validate token at most once per cache window (30s). Zero cost for bursts of requests. */
+    /**
+     * Re-validate token at most once per cache window (30s). Zero cost for bursts of requests.
+     */
     private static final long AUTH_CACHE_MS = 30_000;
-
     // Paths that don't require authentication
     private static final String[] PUBLIC_PATHS = {
-        "/api/auth/login",
-        "/api/auth/logout",
-        "/api/auth/status",
-        "/login.html",
-        "/favicon.ico"
+            "/api/auth/login",
+            "/api/auth/logout",
+            "/api/auth/status",
+            "/login.html",
+            "/favicon.ico"
     };
+    private final AuthManager authManager;
+    private final WebUIConfig config;
 
     public AuthHandler(AuthManager authManager, WebUIConfig config) {
         this.authManager = authManager;
         this.config = config;
     }
 
+    private static void clearCache(Channel channel) {
+        channel.attr(AUTH_CACHE_KEY).set(null);
+        channel.attr(AUTH_EPOCH_KEY).set(null);
+    }
+
+    /**
+     * Validate that a file path stays within allowed directories
+     *
+     * @return true if path is safe, false if traversal detected
+     */
+    public static boolean isSafePath(String path) {
+        if (path == null) return false;
+        // Normalize and check for traversal
+        String normalized = path.replace("\\", "/");
+        if (normalized.contains("..") || normalized.contains("//")) return false;
+        if (normalized.contains("\0")) return false;
+        // Must start with / and not contain drive letters (Windows)
+        if (!normalized.startsWith("/")) return false;
+        return true;
+    }
+
+    /**
+     * Extract authentication token from request (cookie or Bearer header).
+     * Shared utility — also used by {@link AuthController} and {@link com.zenith.webui.server.WebUIChannelHandler}.
+     */
+    public static String extractToken(FullHttpRequest request) {
+        // Try Authorization header first
+        String authHeader = request.headers().get(HttpHeaderNames.AUTHORIZATION);
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            return authHeader.substring(7);
+        }
+
+        // Try cookie
+        String cookieHeader = request.headers().get(HttpHeaderNames.COOKIE);
+        if (cookieHeader != null) {
+            String[] cookies = cookieHeader.split(";");
+            for (String cookie : cookies) {
+                String[] parts = cookie.trim().split("=", 2);
+                if (parts.length == 2 && "webui_token".equals(parts[0].trim())) {
+                    return parts[1].trim();
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Send unauthorized response (safe from JSON injection)
+     */
+    public static void sendUnauthorized(ChannelHandlerContext ctx, String message) {
+        JsonObject json = new JsonObject();
+        json.add("error", new JsonPrimitive(message));
+        json.add("code", new JsonPrimitive(401));
+        byte[] bytes = json.toString().getBytes(StandardCharsets.UTF_8);
+
+        HttpResponse response = new DefaultHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.UNAUTHORIZED);
+        response.headers().set(HttpHeaderNames.CONTENT_TYPE, "application/json");
+        response.headers().set(HttpHeaderNames.WWW_AUTHENTICATE, "Bearer realm=\"webui\"");
+        response.headers().set(HttpHeaderNames.CONTENT_LENGTH, bytes.length);
+        ctx.write(response);
+        ctx.write(new DefaultHttpContent(Unpooled.wrappedBuffer(bytes)));
+        ctx.writeAndFlush(LastHttpContent.EMPTY_LAST_CONTENT).addListener(ChannelFutureListener.CLOSE);
+    }
+
+    /**
+     * Send redirect to login page
+     */
+    public static void sendRedirect(ChannelHandlerContext ctx, String location) {
+        HttpResponse response = new DefaultHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.FOUND);
+        response.headers().set(HttpHeaderNames.LOCATION, location);
+        response.headers().set(HttpHeaderNames.CONTENT_LENGTH, 0);
+        ctx.writeAndFlush(response).addListener(ChannelFutureListener.CLOSE);
+    }
+
+    // ── SSE channel registration (event-driven disconnect on logout/password-change) ──
+
     /**
      * Check if request is authenticated, with per-channel caching.
+     *
      * @return true if authenticated or public path, false otherwise
      */
     public boolean checkAuth(ChannelHandlerContext ctx, FullHttpRequest request) {
@@ -84,7 +166,7 @@ public class AuthHandler {
         long now = System.currentTimeMillis();
         long currentEpoch = AuthManager.epoch();
         if (cachedTs != null && cachedEpoch != null && cachedEpoch == currentEpoch
-            && (now - cachedTs) < AUTH_CACHE_MS) {
+                && (now - cachedTs) < AUTH_CACHE_MS) {
             return true;
         }
 
@@ -106,26 +188,6 @@ public class AuthHandler {
         return false;
     }
 
-    private static void clearCache(Channel channel) {
-        channel.attr(AUTH_CACHE_KEY).set(null);
-        channel.attr(AUTH_EPOCH_KEY).set(null);
-    }
-
-    /**
-     * Validate that a file path stays within allowed directories
-     * @return true if path is safe, false if traversal detected
-     */
-    public static boolean isSafePath(String path) {
-        if (path == null) return false;
-        // Normalize and check for traversal
-        String normalized = path.replace("\\", "/");
-        if (normalized.contains("..") || normalized.contains("//")) return false;
-        if (normalized.contains("\0")) return false;
-        // Must start with / and not contain drive letters (Windows)
-        if (!normalized.startsWith("/")) return false;
-        return true;
-    }
-
     /**
      * Get authenticated username from request
      */
@@ -136,68 +198,16 @@ public class AuthHandler {
     }
 
     /**
-     * Extract authentication token from request (cookie or Bearer header).
-     * Shared utility — also used by {@link AuthController} and {@link com.zenith.webui.server.WebUIChannelHandler}.
+     * Register an SSE channel for a token so it can be closed when the token is revoked.
      */
-    public static String extractToken(FullHttpRequest request) {
-        // Try Authorization header first
-        String authHeader = request.headers().get(HttpHeaderNames.AUTHORIZATION);
-        if (authHeader != null && authHeader.startsWith("Bearer ")) {
-            return authHeader.substring(7);
-        }
-
-        // Try cookie
-        String cookieHeader = request.headers().get(HttpHeaderNames.COOKIE);
-        if (cookieHeader != null) {
-            String[] cookies = cookieHeader.split(";");
-            for (String cookie : cookies) {
-                String[] parts = cookie.trim().split("=", 2);
-                if (parts.length == 2 && "webui_token".equals(parts[0].trim())) {
-                    return parts[1].trim();
-                }
-            }
-        }
-
-        return null;
-    }
-
-    // ── SSE channel registration (event-driven disconnect on logout/password-change) ──
-
-    /** Register an SSE channel for a token so it can be closed when the token is revoked. */
     public void registerSseChannel(String token, Channel channel) {
         authManager.registerChannel(token, channel);
     }
 
-    /** Unregister an SSE channel (called on channelInactive). */
+    /**
+     * Unregister an SSE channel (called on channelInactive).
+     */
     public void unregisterSseChannel(Channel channel) {
         authManager.unregisterChannel(channel);
-    }
-
-    /**
-     * Send unauthorized response (safe from JSON injection)
-     */
-    public static void sendUnauthorized(ChannelHandlerContext ctx, String message) {
-        JsonObject json = new JsonObject();
-        json.add("error", new JsonPrimitive(message));
-        json.add("code", new JsonPrimitive(401));
-        byte[] bytes = json.toString().getBytes(StandardCharsets.UTF_8);
-
-        HttpResponse response = new DefaultHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.UNAUTHORIZED);
-        response.headers().set(HttpHeaderNames.CONTENT_TYPE, "application/json");
-        response.headers().set(HttpHeaderNames.WWW_AUTHENTICATE, "Bearer realm=\"webui\"");
-        response.headers().set(HttpHeaderNames.CONTENT_LENGTH, bytes.length);
-        ctx.write(response);
-        ctx.write(new DefaultHttpContent(Unpooled.wrappedBuffer(bytes)));
-        ctx.writeAndFlush(LastHttpContent.EMPTY_LAST_CONTENT).addListener(ChannelFutureListener.CLOSE);
-    }
-
-    /**
-     * Send redirect to login page
-     */
-    public static void sendRedirect(ChannelHandlerContext ctx, String location) {
-        HttpResponse response = new DefaultHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.FOUND);
-        response.headers().set(HttpHeaderNames.LOCATION, location);
-        response.headers().set(HttpHeaderNames.CONTENT_LENGTH, 0);
-        ctx.writeAndFlush(response).addListener(ChannelFutureListener.CLOSE);
     }
 }

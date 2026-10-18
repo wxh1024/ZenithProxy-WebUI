@@ -21,6 +21,13 @@ public class AuthController {
         this.authManager = authManager;
     }
 
+    private static String buildCookie(String token, int maxAge) {
+        if (maxAge > 0) {
+            return "webui_token=" + token + "; Path=/; HttpOnly; SameSite=Lax; Max-Age=" + maxAge;
+        }
+        return "webui_token=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0";
+    }
+
     /**
      * Handle login request
      * POST /api/auth/login
@@ -32,7 +39,7 @@ public class AuthController {
 
             if (json == null || !json.has("username") || !json.has("password")) {
                 sendJson(ctx, HttpResponseStatus.BAD_REQUEST,
-                    Map.of("success", false, "error", "Missing username or password"));
+                        Map.of("success", false, "error", "Missing username or password"));
                 return;
             }
 
@@ -51,11 +58,11 @@ public class AuthController {
                 sendJsonWithCookie(ctx, HttpResponseStatus.OK, response, cookie);
             } else {
                 sendJson(ctx, HttpResponseStatus.UNAUTHORIZED,
-                    Map.of("success", false, "error", "Invalid username or password"));
+                        Map.of("success", false, "error", "Invalid username or password"));
             }
         } catch (Exception e) {
             sendJson(ctx, HttpResponseStatus.INTERNAL_SERVER_ERROR,
-                Map.of("success", false, "error", "Login failed"));
+                    Map.of("success", false, "error", "Login failed"));
         }
     }
 
@@ -70,7 +77,7 @@ public class AuthController {
 
         String cookie = buildCookie("", 0);
         sendJsonWithCookie(ctx, HttpResponseStatus.OK,
-            Map.of("success", true), cookie);
+                Map.of("success", true), cookie);
     }
 
     /**
@@ -82,10 +89,10 @@ public class AuthController {
 
         if (username != null) {
             sendJson(ctx, HttpResponseStatus.OK,
-                Map.of("authenticated", true, "username", username));
+                    Map.of("authenticated", true, "username", username));
         } else {
             sendJson(ctx, HttpResponseStatus.UNAUTHORIZED,
-                Map.of("authenticated", false));
+                    Map.of("authenticated", false));
         }
     }
 
@@ -97,24 +104,17 @@ public class AuthController {
         return "unknown";
     }
 
-    private static String buildCookie(String token, int maxAge) {
-        if (maxAge > 0) {
-            return "webui_token=" + token + "; Path=/; HttpOnly; SameSite=Lax; Max-Age=" + maxAge;
-        }
-        return "webui_token=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0";
-    }
-
     private void sendJson(ChannelHandlerContext ctx, HttpResponseStatus status, Object obj) {
         sendResponse(ctx, status, obj, null);
     }
 
     private void sendJsonWithCookie(ChannelHandlerContext ctx, HttpResponseStatus status,
-                                     Object obj, String cookie) {
+                                    Object obj, String cookie) {
         sendResponse(ctx, status, obj, cookie);
     }
 
     private void sendResponse(ChannelHandlerContext ctx, HttpResponseStatus status,
-                               Object obj, String cookie) {
+                              Object obj, String cookie) {
         byte[] bytes = HttpHelper.GSON.toJson(obj).getBytes(StandardCharsets.UTF_8);
         HttpResponse response = new DefaultHttpResponse(HttpVersion.HTTP_1_1, status);
         response.headers().set(HttpHeaderNames.CONTENT_TYPE, "application/json");

@@ -19,29 +19,44 @@ import java.util.Map;
  */
 public class StaticFileHandler {
     private static final int FILE_CACHE_MAX_SIZE = 128;
-    /** LRU file cache: access-order LinkedHashMap wrapped in synchronizedMap for thread safety. */
+    /**
+     * LRU file cache: access-order LinkedHashMap wrapped in synchronizedMap for thread safety.
+     */
     private static final Map<Path, byte[]> fileCache = Collections.synchronizedMap(
-        new LinkedHashMap<>(FILE_CACHE_MAX_SIZE, 0.75f, true) {
-            @Override
-            protected boolean removeEldestEntry(Map.Entry<Path, byte[]> eldest) {
-                return size() > FILE_CACHE_MAX_SIZE;
-            }
-        });
-    /** Cache classpath resources keyed by path (e.g. "index.html"). */
+            new LinkedHashMap<>(FILE_CACHE_MAX_SIZE, 0.75f, true) {
+                @Override
+                protected boolean removeEldestEntry(Map.Entry<Path, byte[]> eldest) {
+                    return size() > FILE_CACHE_MAX_SIZE;
+                }
+            });
+    /**
+     * Cache classpath resources keyed by path (e.g. "index.html").
+     */
     private static final Map<String, byte[]> resourceCache = Collections.synchronizedMap(
-        new LinkedHashMap<>(FILE_CACHE_MAX_SIZE, 0.75f, true) {
-            @Override
-            protected boolean removeEldestEntry(Map.Entry<String, byte[]> eldest) {
-                return size() > FILE_CACHE_MAX_SIZE;
-            }
-        });
-    /** Sentinel for files that don't exist, to avoid repeated I/O. */
+            new LinkedHashMap<>(FILE_CACHE_MAX_SIZE, 0.75f, true) {
+                @Override
+                protected boolean removeEldestEntry(Map.Entry<String, byte[]> eldest) {
+                    return size() > FILE_CACHE_MAX_SIZE;
+                }
+            });
+    /**
+     * Sentinel for files that don't exist, to avoid repeated I/O.
+     */
     private static final byte[] NOT_FOUND = new byte[0];
 
     private final Path webDir;
 
     public StaticFileHandler(Path configDir) {
         this.webDir = configDir.resolve("web").toAbsolutePath().normalize();
+    }
+
+    /**
+     * True for extension-bearing paths, i.e. real files rather than SPA routes.
+     */
+    private static boolean looksLikeAsset(String path) {
+        int slash = path.lastIndexOf('/');
+        int dot = path.lastIndexOf('.');
+        return dot > slash && dot > 0;
     }
 
     public void handleStaticFile(ChannelHandlerContext ctx, String path) {
@@ -78,13 +93,6 @@ public class StaticFileHandler {
         }
     }
 
-    /** True for extension-bearing paths, i.e. real files rather than SPA routes. */
-    private static boolean looksLikeAsset(String path) {
-        int slash = path.lastIndexOf('/');
-        int dot = path.lastIndexOf('.');
-        return dot > slash && dot > 0;
-    }
-
     /**
      * Resolve a URL path inside the plugin's web directory.
      * {@code isSafePath} already rejects {@code ..}, but an absolute Windows path
@@ -99,7 +107,9 @@ public class StaticFileHandler {
         return loadFile(candidate);
     }
 
-    /** Cached wrapper around classpath resource loading. */
+    /**
+     * Cached wrapper around classpath resource loading.
+     */
     private byte[] loadResourceCached(String path) {
         String cacheKey = path.startsWith("/") ? path.substring(1) : path;
         byte[] cached = resourceCache.get(cacheKey);

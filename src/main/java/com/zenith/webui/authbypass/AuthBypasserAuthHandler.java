@@ -16,7 +16,7 @@ import javax.crypto.SecretKey;
  * completes the encryption handshake without contacting Mojang's session servers.
  * This allows offline accounts to join hybrid-auth servers that still set
  * authenticate=true in their hello packet.
- *
+ * <p>
  * Original author: CandyMagicShow (3CNewAuthBypasser plugin)
  */
 public class AuthBypasserAuthHandler implements PacketHandler<ClientboundHelloPacket, ClientSession> {

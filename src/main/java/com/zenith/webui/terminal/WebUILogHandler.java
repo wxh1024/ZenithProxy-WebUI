@@ -15,10 +15,10 @@ import java.util.regex.Pattern;
 public class WebUILogHandler extends UnsynchronizedAppenderBase<ILoggingEvent> {
     private static final Pattern ANSI_PATTERN = Pattern.compile("\\x1B\\[[0-9;]*[A-Za-z]");
     private static final String[] IGNORED_PREFIXES = {
-        "com.sun.net.httpserver",
-        "jdk.httpserver",
-        "com.zenith.webui.auth",     // Auth events contain sensitive data (username, IP)
-        "WebUI-Auth"                 // AuthManager logger — same reason
+            "com.sun.net.httpserver",
+            "jdk.httpserver",
+            "com.zenith.webui.auth",     // Auth events contain sensitive data (username, IP)
+            "WebUI-Auth"                 // AuthManager logger — same reason
     };
 
     @Override

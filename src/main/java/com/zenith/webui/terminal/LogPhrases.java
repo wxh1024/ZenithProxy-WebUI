@@ -18,8 +18,6 @@ import java.util.Map;
  * "Disconnected from server" must match before "Disconnected".
  */
 public final class LogPhrases {
-    private LogPhrases() {}
-
     private static final Map<String, String> TABLE = new LinkedHashMap<>();
 
     static {
@@ -74,7 +72,12 @@ public final class LogPhrases {
         TABLE.put("Cancelling", "正在取消");
     }
 
-    /** Raw {@code English -> Chinese} phrase table, served to the browser as JSON. */
+    private LogPhrases() {
+    }
+
+    /**
+     * Raw {@code English -> Chinese} phrase table, served to the browser as JSON.
+     */
     public static Map<String, String> table() {
         return Collections.unmodifiableMap(TABLE);
     }

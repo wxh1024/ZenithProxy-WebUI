@@ -28,34 +28,34 @@ public class WebUICommand extends Command {
     @Override
     public CommandUsage commandUsage() {
         return CommandUsage.builder().name("webui").category(CommandCategory.MANAGE)
-            .description("控制WebUI服务器").usageLines("enable", "disable", "status").build();
+                .description("控制WebUI服务器").usageLines("enable", "disable", "status").build();
     }
 
     @Override
     public LiteralArgumentBuilder<CommandContext> register() {
         return literal("webui")
-            .then(literal("enable").executes(ctx -> {
-                boolean ok = startAction.getAsBoolean();
-                ctx.getSource().getEmbed()
-                    .title(ok ? "WebUI Enabled" : "WebUI Start Failed")
-                    .description(ok ? "http://localhost:" + port : "检查日志了解详情 / Check logs for details");
-                return ok ? 1 : 0;
-            }))
-            .then(literal("disable").executes(ctx -> {
-                stopAction.run();
-                ctx.getSource().getEmbed().title("WebUI Disabled");
-                return 1;
-            }))
-            .then(literal("status").executes(ctx -> {
-                String status = isRunning.getAsBoolean() ? "Running" : "Stopped";
-                ctx.getSource().getEmbed().title("WebUI Status")
-                    .description("状态: " + status + "\nHTTP: http://localhost:" + port);
-                return 1;
-            }))
-            .executes(ctx -> {
-                ctx.getSource().getEmbed().title("WebUI")
-                    .description("用法: webui enable/disable/status");
-                return 1;
-            });
+                .then(literal("enable").executes(ctx -> {
+                    boolean ok = startAction.getAsBoolean();
+                    ctx.getSource().getEmbed()
+                            .title(ok ? "WebUI Enabled" : "WebUI Start Failed")
+                            .description(ok ? "http://localhost:" + port : "检查日志了解详情 / Check logs for details");
+                    return ok ? 1 : 0;
+                }))
+                .then(literal("disable").executes(ctx -> {
+                    stopAction.run();
+                    ctx.getSource().getEmbed().title("WebUI Disabled");
+                    return 1;
+                }))
+                .then(literal("status").executes(ctx -> {
+                    String status = isRunning.getAsBoolean() ? "Running" : "Stopped";
+                    ctx.getSource().getEmbed().title("WebUI Status")
+                            .description("状态: " + status + "\nHTTP: http://localhost:" + port);
+                    return 1;
+                }))
+                .executes(ctx -> {
+                    ctx.getSource().getEmbed().title("WebUI")
+                            .description("用法: webui enable/disable/status");
+                    return 1;
+                });
     }
 }

@@ -5,10 +5,10 @@
  * (`/api/dashboard/stream`). Both funnel into `renderDashboard()`.
  */
 
-import { apiCall, createStream } from './api.js';
-import { state, LIMITS, onLanguageChange } from './state.js';
-import { t, formatUptime, localeTag } from './i18n.js';
-import { escapeHtml, getPingClass } from './util.js';
+import {apiCall, createStream} from './api.js';
+import {LIMITS, onLanguageChange, state} from './state.js';
+import {formatUptime, localeTag, t} from './i18n.js';
+import {escapeHtml, getPingClass} from './util.js';
 
 const chartColors = {
     cpu: 'rgba(198, 160, 246, 1)', cpuBg: 'rgba(198, 160, 246, 0.15)',
@@ -72,18 +72,18 @@ function makeTimeLabels(count) {
 function makeChartOptions(unit, max) {
     const yScale = {
         display: true, min: 0,
-        grid: { color: chartColors.grid },
+        grid: {color: chartColors.grid},
         ticks: {
-            color: chartColors.text, font: { size: 10 }, maxTicksLimit: 5,
+            color: chartColors.text, font: {size: 10}, maxTicksLimit: 5,
             callback: v => v + (unit || ''),
         },
     };
     if (max !== undefined && max !== null) yScale.max = max;
     return {
-        responsive: true, maintainAspectRatio: false, animation: { duration: 0 },
-        interaction: { intersect: false, mode: 'index' },
+        responsive: true, maintainAspectRatio: false, animation: {duration: 0},
+        interaction: {intersect: false, mode: 'index'},
         plugins: {
-            legend: { display: false },
+            legend: {display: false},
             tooltip: {
                 backgroundColor: 'rgba(30,32,48,0.95)', titleColor: '#cad3f5',
                 bodyColor: '#b8c0e0', borderColor: 'rgba(91,96,120,0.5)',
@@ -92,8 +92,8 @@ function makeChartOptions(unit, max) {
         },
         scales: {
             x: {
-                display: true, grid: { color: chartColors.grid },
-                ticks: { color: chartColors.text, font: { size: 10 }, maxTicksLimit: 6 },
+                display: true, grid: {color: chartColors.grid},
+                ticks: {color: chartColors.text, font: {size: 10}, maxTicksLimit: 6},
             },
             y: yScale,
         },
@@ -116,7 +116,7 @@ function legendOptions(unit, max) {
             ...base.plugins,
             legend: {
                 display: true, position: 'top',
-                labels: { color: chartColors.text, boxWidth: 12, padding: 10, font: { size: 11 } },
+                labels: {color: chartColors.text, boxWidth: 12, padding: 10, font: {size: 11}},
             },
         },
     };
@@ -128,12 +128,12 @@ function initCharts() {
     const tl = makeTimeLabels(LIMITS.MAX_DATA_POINTS);
     cpuChart = new Chart(document.getElementById('cpuChart'), {
         type: 'line',
-        data: { labels: tl, datasets: [makeDS(t('chart.cpu.label'), chartColors.cpu, chartColors.cpuBg)] },
+        data: {labels: tl, datasets: [makeDS(t('chart.cpu.label'), chartColors.cpu, chartColors.cpuBg)]},
         options: makeChartOptions('%', 100),
     });
     memoryChart = new Chart(document.getElementById('memoryChart'), {
         type: 'line',
-        data: { labels: tl, datasets: [makeDS(t('chart.memory.label'), chartColors.memory, chartColors.memoryBg)] },
+        data: {labels: tl, datasets: [makeDS(t('chart.memory.label'), chartColors.memory, chartColors.memoryBg)]},
         options: makeChartOptions('%', 100),
     });
     networkChart = new Chart(document.getElementById('networkChart'), {
@@ -211,17 +211,17 @@ function renderQueue(q) {
     }
 
     if (wasInQueue) {
-        posEl.textContent = t('queue.position', { n: q.position });
+        posEl.textContent = t('queue.position', {n: q.position});
         posEl.style.color = 'var(--ctp-yellow)';
         if (onlineEl) {
-            onlineEl.textContent = q.onlinePlayers > 0 ? t('queue.online', { n: q.onlinePlayers }) : '';
+            onlineEl.textContent = q.onlinePlayers > 0 ? t('queue.online', {n: q.onlinePlayers}) : '';
         }
         state.queueConnectedTime = 0;
     } else {
         posEl.textContent = t('queue.entered');
         posEl.style.color = 'var(--ctp-green)';
         if (onlineEl) {
-            onlineEl.textContent = q && q.onlinePlayers > 0 ? t('queue.online', { n: q.onlinePlayers }) : '';
+            onlineEl.textContent = q && q.onlinePlayers > 0 ? t('queue.online', {n: q.onlinePlayers}) : '';
         }
         state.queueConnectedTime = 0;
     }
@@ -260,7 +260,7 @@ function renderLatencyDetail(lat) {
     const detail = document.getElementById('latencyDetail');
     if (!detail || !lat) return;
     const parts = [`<div class="latency-item"><span class="player-name">${escapeHtml(t('chart.latency.bot'))}</span>` +
-        `<span class="ping-value ${getPingClass(lat.botLatency)}">${lat.botLatency}ms</span></div>`];
+    `<span class="ping-value ${getPingClass(lat.botLatency)}">${lat.botLatency}ms</span></div>`];
     if (lat.players && lat.players.length > 0) {
         for (const p of lat.players) {
             parts.push(`<div class="latency-item"><span class="player-name">${escapeHtml(p.name)}</span>` +
@@ -303,7 +303,7 @@ export function renderDashboard(d) {
         state.queueInitialized = true;
     }
 
-    renderQueue({ inQueue: d.inQueue, position: d.queuePosition, onlinePlayers: d.queueOnlinePlayers });
+    renderQueue({inQueue: d.inQueue, position: d.queuePosition, onlinePlayers: d.queueOnlinePlayers});
 
     const uptimeEl = document.getElementById('uptime');
     if (uptimeEl && d.uptime) uptimeEl.textContent = formatUptime(d.uptime);
