@@ -1,9 +1,13 @@
 {
   "entrypoint": "com.zenith.webui.WebUIPlugin",
   "id": "webui",
-  "version": "1.5.0",
+  "version": "1.5.1",
   "description": "WebUI for ZenithProxy - browser-based management dashboard",
   "url": "https://github.com/wxh1024/ZenithProxy-WebUI",
-  "authors": ["wxh1024"],
-  "mcVersions": ["*"]
+  "authors": [
+    "wxh1024"
+  ],
+  "mcVersions": [
+    "*"
+  ]
 }
