@@ -67,6 +67,11 @@ public final class LogPhrases {
         TABLE.put("Entering server", "正在进入服务器");
         TABLE.put("Disconnected", "已断开连接");
         TABLE.put("Connecting", "正在连接");
+        // Fragments seen in real AutoReconnect / disconnect lines.
+        TABLE.put("in 2s", "2 秒后");
+        TABLE.put("Connection reset", "连接被重置");
+        TABLE.put("Try waiting and connecting again", "请稍候重试连接");
+        TABLE.put("Cancelling", "正在取消");
     }
 
     /** Raw {@code English -> Chinese} phrase table, served to the browser as JSON. */

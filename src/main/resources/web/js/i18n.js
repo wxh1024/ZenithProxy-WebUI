@@ -392,7 +392,24 @@ export function formatUptime(ms) {
 export function translateLog(message) {
     if (!message || currentLang !== 'zh') return message;
     if (!logPattern) return message;
-    return message.replace(logPattern, m => logPhrases[m] || m);
+    return message.replace(logPattern, m => lookupPhrase(m) || m);
+}
+
+/**
+ * Case-insensitive phrase lookup.
+ *
+ * The table is written in Title Case ("Entering server") but real log lines
+ * lowercase it mid-sentence ("Queue complete, entering server"). A
+ * case-sensitive alternation silently misses those, leaving stray English
+ * inside an otherwise translated line.
+ */
+function lookupPhrase(matched) {
+    if (logPhrases[matched]) return logPhrases[matched];
+    const lower = matched.toLowerCase();
+    for (const key of logPhraseKeys) {
+        if (key.toLowerCase() === lower) return logPhrases[key];
+    }
+    return null;
 }
 
 function setLogPhrases(table) {
@@ -404,7 +421,8 @@ function setLogPhrases(table) {
         return;
     }
     const escaped = logPhraseKeys.map(k => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
-    logPattern = new RegExp(escaped.join('|'), 'g');
+    // The 'i' flag handles casing; lookupPhrase resolves the original casing.
+    logPattern = new RegExp(escaped.join('|'), 'gi');
 }
 
 /** Minimal table used when `GET /api/i18n` is unreachable. */
