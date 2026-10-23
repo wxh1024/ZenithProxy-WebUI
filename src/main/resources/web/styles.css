@@ -1202,24 +1202,26 @@ body {
     background-color: var(--ctp-surface0);
 }
 
-/* True waterfall (masonry) flow: cards fill each column top-to-bottom, so
-   collapsing a card lets the cards below it shift up to fill the gap — unlike
-   a grid, which would leave a whole-row hole. Equal-width columns keep the
-   layout tidy at 3 / 2 / 1 columns depending on viewport width. */
-.feature-list {
-    column-count: 3;
-    column-gap: 12px;
-}
+/* Stable grid layout: each card occupies a fixed cell so that expanding or
+   collapsing a card only changes that card's height (and, with auto rows,
+   the row below it), never re-flowing cards horizontally into a different
+   column. This replaces the previous CSS-columns masonry, where browsers
+   re-balance column heights and cards visibly jump between columns.
 
-@media (max-width: 1023px) {
-    .feature-list {
-        column-count: 2;
-    }
+   `align-items: start` keeps each card at the top of its row instead of
+   stretching, so a tall expanded card doesn't stretch its shorter neighbours.
+   Two columns on wide screens, one on narrow — a simple, predictable grid. */
+.feature-list {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: 12px;
+    row-gap: 12px;
+    align-items: start;
 }
 
 @media (max-width: 768px) {
     .feature-list {
-        column-count: 1;
+        grid-template-columns: minmax(0, 1fr);
     }
 }
 
@@ -1229,8 +1231,6 @@ body {
     border: 1px solid var(--ctp-surface1);
     border-radius: 8px;
     overflow: hidden;
-    break-inside: avoid;
-    margin-bottom: 12px;
     transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
