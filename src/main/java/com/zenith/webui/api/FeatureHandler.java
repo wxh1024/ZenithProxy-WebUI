@@ -239,10 +239,16 @@ public class FeatureHandler {
 
     // ── Reflective CONFIG access ─────────────────────────────────────────
 
-    /** Resolves {@code "a.b.c"} against CONFIG, returning the leaf value or null. */
+    /**
+     * Every feature path is relative to {@code CONFIG.client.extra} — the object
+     * that holds all bot feature toggles and parameters.
+     */
+    private static final Object EXTRA_ROOT = CONFIG.client.extra;
+
+    /** Resolves {@code "a.b.c"} against CONFIG.client.extra, returning the leaf value or null. */
     private static Object readPath(String path) {
         try {
-            Object current = CONFIG;
+            Object current = EXTRA_ROOT;
             for (String part : path.split("\\.")) {
                 current = field(current, part).get(current);
                 if (current == null) return null;
@@ -255,7 +261,7 @@ public class FeatureHandler {
 
     /** Writes a JSON value into the leaf field at {@code path}, coercing to the field type. */
     private static void writePath(FeatureDef def, JsonElement raw) throws Exception {
-        Object target = CONFIG;
+        Object target = EXTRA_ROOT;
         String[] parts = def.path().split("\\.");
         for (int i = 0; i < parts.length - 1; i++) {
             Field f = field(target, parts[i]);
