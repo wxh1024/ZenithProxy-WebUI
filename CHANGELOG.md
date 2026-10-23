@@ -4,6 +4,31 @@
 
 ## [未发布]
 
+## [1.6.1] - 2026-10-24
+
+本版为架构评审后的缺陷修复版，无新增功能、无接口变更、无前端资源改动。
+
+### 修复
+
+- **错误响应伪装成成功**：请求处理过程中抛出未捕获异常时，服务端返回 `200 OK` 加一个错误
+  响应体，浏览器无法区分“服务端出错”与“操作成功”（前端只对 `401` 单独处理）。现在返回
+  `500`，并记录请求方法与路径及完整堆栈——此前该异常被完全静默。
+- **配置边界只在浏览器生效**：功能配置与基础配置的 `min` / `max` 仅被渲染成 HTML 属性，
+  绕过页面直接 POST 即可写入越界值（如 `attackDelayTicks = -1`、端口超出 `1..65535`）。
+  服务端现已按 schema 声明的边界校验，越界值不写入并出现在响应的 `rejectedKeys` 中。
+- **配置重载后读写静默失效**：`FeatureHandler` 把 `CONFIG.client.extra` 缓存在 `static final`
+  字段里，只在类初始化时求值一次；配置重载后读写会落到已脱离的旧对象，且因 `readPath`
+  把异常映射为 `null` 而完全没有报错。改为每次访问重新解析。
+- **SSE 广播缓冲区泄漏**：`broadcastSSE` 与 `pushDashboardHeartbeat` 在 `writeAndFlush`
+  抛出异常时，已 `retainedDuplicate()` 的缓冲区没有释放，每次失败泄漏一个引用计数。
+- **schema 响应丢失空值字段**：`GET /api/basic` 与 `GET /api/features` 中当前值为 `null`
+  的字段，响应里连 `value` 键都不存在（Gson 默认不序列化 null 成员），例如
+  `authentication.offlineUUID`；前端仅靠 `item.value ?? ''` 兜底才未出错。两处改用
+  `GSON_NULLS` 序列化，与看板接口的做法保持一致。
+- **非法路径返回 500**：路径中含 Windows 保留字符（`* ? " < > |`）时，`webDir.resolve`
+  抛出 `InvalidPathException` 并穿透为 `500`。此类路径不可能对应真实文件，现按“文件不存在”
+  处理，返回 `404`。
+
 ## [1.6.0] - 2026-10-23
 
 ### 新增
