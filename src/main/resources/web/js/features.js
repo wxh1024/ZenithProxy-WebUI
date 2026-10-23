@@ -101,27 +101,42 @@ function groupSection(group) {
 /**
  * One module card. The master `*.enabled` switch (if any) is lifted out of the
  * body into the header; the remaining fields render as parameter rows.
+ *
+ * Cards with no parameters have no body to reveal, so they render without a
+ * chevron or collapse interaction — just a static title + master switch.
  */
 function featureCard(feature) {
     const items = feature.items || [];
     const master = items.find(i => i.type === 'boolean' && i.key.endsWith('.enabled'));
     const params = master ? items.filter(i => i !== master) : items;
-    const isCollapsed = collapsed.has(feature.id);
+    const hasParams = params.length > 0;
+    const isCollapsed = hasParams && collapsed.has(feature.id);
+
+    const header = hasParams
+        ? `
+            <button type="button" class="feature-card-titlebar" data-collapse-toggle
+                    aria-expanded="${!isCollapsed}" aria-label="${escapeHtml(t(feature.labelKey))}">
+                <span class="feature-chevron">${chevronSvg()}</span>
+                <span class="feature-card-title">${escapeHtml(t(feature.labelKey))}</span>
+            </button>`
+        : `
+            <div class="feature-card-titlebar static">
+                <span class="feature-card-title">${escapeHtml(t(feature.labelKey))}</span>
+            </div>`;
 
     return `
-        <div class="feature-card ${isCollapsed ? 'collapsed' : ''} ${master ? 'has-master' : ''}"
+        <div class="feature-card ${hasParams ? 'collapsible' : 'static-card'} ${isCollapsed ? 'collapsed' : ''} ${master ? 'has-master' : ''}"
              data-feature="${escapeHtml(feature.id)}">
             <div class="feature-card-header">
-                <button type="button" class="feature-card-titlebar" data-collapse-toggle
-                        aria-expanded="${!isCollapsed}" aria-label="${escapeHtml(t(feature.labelKey))}">
-                    <span class="feature-chevron">${chevronSvg()}</span>
-                    <span class="feature-card-title">${escapeHtml(t(feature.labelKey))}</span>
-                </button>
+                ${header}
                 ${master ? masterSwitch(master) : ''}
             </div>
+            ${hasParams ? `
             <div class="feature-card-body">
-                ${params.length ? params.map(itemRow).join('') : noParamsHint()}
-            </div>
+                <div class="feature-card-body-inner">
+                    ${params.map(itemRow).join('')}
+                </div>
+            </div>` : ''}
         </div>`;
 }
 
@@ -133,10 +148,6 @@ function masterSwitch(master) {
                    data-type="boolean" data-master ${master.value ? 'checked' : ''}>
             <span class="toggle-slider"></span>
         </label>`;
-}
-
-function noParamsHint() {
-    return `<div class="feature-noparams">${escapeHtml(t('feat.noparams'))}</div>`;
 }
 
 function chevronSvg() {

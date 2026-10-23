@@ -1202,10 +1202,32 @@ body {
     background-color: var(--ctp-surface0);
 }
 
-/* Card flow — CSS columns so collapsing a card reflows the ones below it */
+/* Responsive waterfall grid: 1 / 2 / 3 columns depending on viewport width.
+   Cards are equal-width; `align-items: start` keeps each card at its own
+   height so collapsed cards shrink without forcing row gaps. */
 .feature-list {
-    columns: 3 320px;
-    column-gap: 12px;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 12px;
+    align-items: start;
+}
+
+@media (min-width: 1024px) {
+    .feature-list {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+@media (max-width: 1023px) {
+    .feature-list {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 768px) {
+    .feature-list {
+        grid-template-columns: 1fr;
+    }
 }
 
 /* Collapsible module card */
@@ -1214,13 +1236,12 @@ body {
     border: 1px solid var(--ctp-surface1);
     border-radius: 8px;
     overflow: hidden;
-    break-inside: avoid;
-    margin-bottom: 12px;
-    transition: border-color 0.15s ease;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .feature-card:hover {
     border-color: var(--ctp-surface2);
+    box-shadow: 0 2px 10px rgba(17, 17, 27, 0.35);
 }
 
 .feature-card-header {
@@ -1250,12 +1271,21 @@ body {
     background-color: var(--ctp-surface1);
 }
 
+/* Static title bar for parameter-less cards: no chevron, not clickable. */
+.feature-card-titlebar.static {
+    cursor: default;
+}
+
+.feature-card-titlebar.static:hover {
+    background-color: transparent;
+}
+
 .feature-chevron {
     display: flex;
     align-items: center;
     justify-content: center;
     color: var(--ctp-overlay1);
-    transition: transform 0.15s ease;
+    transition: transform 0.25s ease;
     flex-shrink: 0;
 }
 
@@ -1278,20 +1308,29 @@ body {
     margin-right: 6px;
 }
 
+/* Collapsible body with a smooth height animation.
+   The grid-template-rows 1fr ↔ 0fr trick animates height without JS. */
 .feature-card-body {
-    padding: 2px 14px 10px;
+    display: grid;
+    grid-template-rows: 1fr;
     border-top: 1px solid var(--ctp-surface1);
+    transition: grid-template-rows 0.25s ease;
+}
+
+.feature-card-body-inner {
+    overflow: hidden;
+    min-height: 0;
+    padding: 2px 14px 10px;
 }
 
 .feature-card.collapsed .feature-card-body {
-    display: none;
+    grid-template-rows: 0fr;
+    border-top-color: transparent;
 }
 
-.feature-noparams {
-    padding: 12px 0 6px;
-    text-align: center;
-    font-size: 0.78rem;
-    color: var(--ctp-overlay0);
+.feature-card.collapsed .feature-card-body-inner {
+    padding-top: 0;
+    padding-bottom: 0;
 }
 
 /* Parameter rows */
@@ -1373,11 +1412,6 @@ body {
     color: var(--ctp-overlay0);
 }
 
-@media (max-width: 768px) {
-    .feature-list {
-        columns: 1;
-    }
-}
 /* ── Login Page ─────────────────────────── */
 .login-body {
     min-height: 100vh;
