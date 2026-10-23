@@ -1,13 +1,17 @@
 /**
- * Feature configuration page — collapsible feature modules over `/api/features`.
+ * Feature configuration page — admin-panel style collapsible module cards.
  *
- * The backend owns the schema as a two-level tree: groups (broad categories)
- * contain features (individual collapsible modules), each with a list of toggle
- * and parameter fields. Every module renders as a card whose header toggles the
- * body open/closed.
+ * The backend owns the schema as a two-level tree: groups (categories) contain
+ * features (modules), each with a list of fields. Rendering follows the common
+ * admin-panel pattern:
  *
- * A feature's parameters are disabled (dimmed) while its master toggle is off,
- * and every change is saved immediately with a short debounce (no toast).
+ *   - Category chips at the top filter the visible cards.
+ *   - Each module renders as a card whose header holds a chevron, the module
+ *     name and its master on/off switch (a boolean field named `*.enabled`).
+ *   - Clicking the header collapses/expands; the switch toggles the module.
+ *   - Parameters live in the body and are dimmed/disabled while off.
+ *
+ * Changes save immediately with a short debounce, no toast.
  */
 
 import {apiCall} from './api.js';
@@ -24,7 +28,10 @@ let saveTimer = null;
 /** Collapsed feature ids, persisted across re-renders and language switches. */
 const collapsed = new Set();
 
-/** Root node for the group list. */
+/** Currently selected category filter ('all' or a group id). */
+let activeFilter = 'all';
+
+/** Root node for the page body. */
 const containerId = 'featureGroups';
 
 export async function loadFeatures() {
@@ -34,48 +41,107 @@ export async function loadFeatures() {
     render();
 }
 
-/** Rebuilds the DOM from the current `groups` state. */
+/** Rebuilds the whole page (chips + cards) from the current `groups` state. */
 function render() {
     const container = document.getElementById(containerId);
     if (!container) return;
-    container.innerHTML = groups.map(groupSection).join('');
+    container.innerHTML = `${filterChips()}${groups.map(groupSection).join('')}`;
+    applyFilter();
     applyEnabledState();
 }
 
-function groupSection(group) {
-    const features = (group.features || []).map(featureCard).join('');
+// ── Category filter chips ────────────────────────────────────────────
+
+function filterChips() {
+    const chips = [
+        {id: 'all', labelKey: 'feat.filter.all', count: countFeatures()},
+        ...groups.map(g => ({id: g.id, labelKey: g.labelKey, count: (g.features || []).length})),
+    ];
     return `
-        <div class="feature-group" data-group="${escapeHtml(group.id)}">
-            <div class="feature-group-header">
-                <h3>${escapeHtml(t(group.labelKey))}</h3>
-            </div>
-            <div class="feature-list">${features}</div>
+        <div class="feature-chips">
+            ${chips.map(c => `
+                <button type="button"
+                        class="feature-chip ${c.id === activeFilter ? 'active' : ''}"
+                        data-filter="${escapeHtml(c.id)}">
+                    ${escapeHtml(t(c.labelKey))}
+                    <span class="feature-chip-count">${c.count}</span>
+                </button>`).join('')}
         </div>`;
 }
 
-function featureCard(feature) {
-    const isCollapsed = collapsed.has(feature.id);
-    const body = featureBody(feature);
+function countFeatures() {
+    return groups.reduce((n, g) => n + (g.features || []).length, 0);
+}
+
+/** Shows only the sections matching the active chip filter. */
+function applyFilter() {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    container.querySelectorAll('[data-group-section]').forEach(section => {
+        const show = activeFilter === 'all' || section.dataset.groupSection === activeFilter;
+        section.classList.toggle('hidden', !show);
+    });
+}
+
+// ── Sections and cards ───────────────────────────────────────────────
+
+function groupSection(group) {
     return `
-        <div class="feature-card ${isCollapsed ? 'collapsed' : ''}" data-feature="${escapeHtml(feature.id)}">
-            <button type="button" class="feature-card-header" data-collapse-toggle
-                    aria-expanded="${!isCollapsed}">
-                <span class="feature-chevron">${chevronSvg()}</span>
-                <span class="feature-card-title">${escapeHtml(t(feature.labelKey))}</span>
-                <span class="feature-master-toggle"></span>
-            </button>
-            <div class="feature-card-body">${body}</div>
+        <div class="feature-section" data-group-section="${escapeHtml(group.id)}">
+            <div class="feature-section-header">
+                <h3>${escapeHtml(t(group.labelKey))}</h3>
+                <span class="feature-section-count">${(group.features || []).length}</span>
+            </div>
+            <div class="feature-list">
+                ${(group.features || []).map(featureCard).join('')}
+            </div>
         </div>`;
+}
+
+/**
+ * One module card. The master `*.enabled` switch (if any) is lifted out of the
+ * body into the header; the remaining fields render as parameter rows.
+ */
+function featureCard(feature) {
+    const items = feature.items || [];
+    const master = items.find(i => i.type === 'boolean' && i.key.endsWith('.enabled'));
+    const params = master ? items.filter(i => i !== master) : items;
+    const isCollapsed = collapsed.has(feature.id);
+
+    return `
+        <div class="feature-card ${isCollapsed ? 'collapsed' : ''} ${master ? 'has-master' : ''}"
+             data-feature="${escapeHtml(feature.id)}">
+            <div class="feature-card-header">
+                <button type="button" class="feature-card-titlebar" data-collapse-toggle
+                        aria-expanded="${!isCollapsed}" aria-label="${escapeHtml(t(feature.labelKey))}">
+                    <span class="feature-chevron">${chevronSvg()}</span>
+                    <span class="feature-card-title">${escapeHtml(t(feature.labelKey))}</span>
+                </button>
+                ${master ? masterSwitch(master) : ''}
+            </div>
+            <div class="feature-card-body">
+                ${params.length ? params.map(itemRow).join('') : noParamsHint()}
+            </div>
+        </div>`;
+}
+
+function masterSwitch(master) {
+    const id = `feat-${master.key.replace(/\./g, '-')}`;
+    return `
+        <label class="toggle feature-master-switch">
+            <input type="checkbox" id="${id}" data-key="${escapeHtml(master.key)}"
+                   data-type="boolean" data-master ${master.value ? 'checked' : ''}>
+            <span class="toggle-slider"></span>
+        </label>`;
+}
+
+function noParamsHint() {
+    return `<div class="feature-noparams">${escapeHtml(t('feat.noparams'))}</div>`;
 }
 
 function chevronSvg() {
     return `<svg fill="none" height="14" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" width="14">
         <polyline points="9 18 15 12 9 6"></polyline></svg>`;
-}
-
-function featureBody(feature) {
-    const rows = (feature.items || []).map(itemRow).join('');
-    return `<div class="feature-items">${rows}</div>`;
 }
 
 function itemRow(item) {
@@ -120,34 +186,27 @@ function itemRow(item) {
 }
 
 /**
- * Disables a feature's parameters while its master toggle is off.
- * A master toggle is a boolean field named `<prefix>.enabled`; sibling items
- * share the `<prefix>.` namespace. The master toggle is also reflected as a
- * small status pill in the card header.
+ * Disables a module's parameters while its master switch is off.
+ * The master switch lives in the card header; sibling parameter rows share
+ * the `<prefix>.` namespace.
  */
 function applyEnabledState() {
-    document.querySelectorAll('.feature-card').forEach(card => {
-        const master = card.querySelector('input[data-type="boolean"][data-key$=".enabled"]');
-        // Reflect master state into the header pill.
-        const pill = card.querySelector('.feature-master-toggle');
-        if (master && pill) {
-            pill.textContent = master.checked ? t('feat.on') : t('feat.off');
-            pill.classList.toggle('on', master.checked);
-        }
+    document.querySelectorAll('.feature-card.has-master').forEach(card => {
+        const master = card.querySelector('input[data-master]');
         if (!master) return;
         const prefix = master.dataset.key.slice(0, -'.enabled'.length) + '.';
         card.querySelectorAll(`[data-item-key^="${CSS.escape(prefix)}"]`).forEach(item => {
-            const ownToggle = item.querySelector('input[data-type="boolean"]');
-            if (ownToggle && ownToggle === master) return;
             item.classList.toggle('feature-disabled', !master.checked);
             item.querySelectorAll('input, select').forEach(el => {
-                if (el !== master) el.disabled = !master.checked;
+                el.disabled = !master.checked;
             });
         });
     });
 }
 
-/** Persists a single field change, debounced so rapid edits collapse into one request. */
+// ── Saving ───────────────────────────────────────────────────────────
+
+/** Persists changes, debounced so rapid edits collapse into one request. */
 function queueSave(key, value) {
     const item = findItem(key);
     if (item) item.value = value;
@@ -167,7 +226,7 @@ async function flushSave() {
             }
         }
     }
-    // Fire-and-forget; no success toast by design.
+    // Fire-and-forget; no toast by design.
     try {
         await apiCall('/features', 'POST', {values});
     } catch { /* ignore — the next edit retries */
@@ -192,24 +251,32 @@ function findItem(key) {
     return null;
 }
 
+// ── Init ─────────────────────────────────────────────────────────────
+
 export function initFeatures() {
     const container = document.getElementById(containerId);
     if (!container) return;
 
-    // Delegated change handling: toggles, number/string inputs and selects all
-    // funnel through one listener, so re-renders need no rebinding.
+    // Delegated change handling: master switch, parameter toggles, number and
+    // text inputs and selects all funnel through one listener.
     container.addEventListener('change', e => {
         const el = e.target.closest('[data-key]');
         if (!el) return;
-        const key = el.dataset.key;
-        const type = el.dataset.type;
-        const value = readControlValue(el, type);
-        queueSave(key, value);
-        if (type === 'boolean' && key.endsWith('.enabled')) applyEnabledState();
+        queueSave(el.dataset.key, readControlValue(el, el.dataset.type));
+        if (el.dataset.type === 'boolean') applyEnabledState();
     });
 
-    // Delegated collapse/expand toggle on card headers.
+    // Category chips filter the visible sections.
     container.addEventListener('click', e => {
+        const chip = e.target.closest('[data-filter]');
+        if (chip) {
+            activeFilter = chip.dataset.filter;
+            container.querySelectorAll('.feature-chip').forEach(c =>
+                c.classList.toggle('active', c.dataset.filter === activeFilter));
+            applyFilter();
+            return;
+        }
+        // Collapse/expand toggle on the card title bar.
         const toggle = e.target.closest('[data-collapse-toggle]');
         if (!toggle) return;
         const card = toggle.closest('.feature-card');
@@ -221,8 +288,7 @@ export function initFeatures() {
             collapsed.add(id);
         }
         card.classList.toggle('collapsed', collapsed.has(id));
-        card.querySelector('[data-collapse-toggle]')
-            ?.setAttribute('aria-expanded', String(!collapsed.has(id)));
+        toggle.setAttribute('aria-expanded', String(!collapsed.has(id)));
     });
 
     // Commit any pending debounced save before the user leaves the page.

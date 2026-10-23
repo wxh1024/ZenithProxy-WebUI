@@ -1119,68 +1119,135 @@ body {
     font-size: 0.88rem;
 }
 
-/* ── Feature Configuration ──────────────────── */
-.feature-hint {
-    font-size: 0.78rem;
+/* ── Feature Configuration (admin-panel style) ─ */
+
+/* Category filter chips */
+.feature-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 20px;
+}
+
+.feature-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    border: 1px solid var(--ctp-surface1);
+    border-radius: 16px;
+    background-color: var(--ctp-surface0);
+    color: var(--ctp-subtext1);
+    font-family: inherit;
+    font-size: 0.8rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.feature-chip:hover {
+    border-color: var(--ctp-overlay0);
+    color: var(--ctp-text);
+}
+
+.feature-chip.active {
+    background-color: var(--ctp-mauve);
+    border-color: var(--ctp-mauve);
+    color: var(--ctp-crust);
+}
+
+.feature-chip-count {
+    font-size: 0.7rem;
+    font-weight: 600;
+    padding: 0 6px;
+    border-radius: 8px;
+    background-color: rgba(17, 17, 27, 0.25);
+}
+
+.feature-chip:not(.active) .feature-chip-count {
+    background-color: var(--ctp-surface1);
     color: var(--ctp-overlay1);
 }
 
-.feature-groups {
+/* Category section */
+.feature-section {
+    margin-bottom: 28px;
+}
+
+.feature-section.hidden {
+    display: none;
+}
+
+.feature-section-header {
     display: flex;
-    flex-direction: column;
-    gap: 16px;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+    padding-left: 10px;
+    border-left: 3px solid var(--ctp-mauve);
 }
 
-.feature-group {
-    background-color: var(--ctp-surface0);
-    border: none;
+.feature-section-header h3 {
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--ctp-text);
 }
 
-.feature-group-header {
-    padding: 14px 16px;
-    border-bottom: 1px solid var(--ctp-surface1);
-}
-
-.feature-group-header h3 {
-    font-size: 1rem;
+.feature-section-count {
+    font-size: 0.7rem;
     font-weight: 600;
-    color: var(--ctp-lavender);
+    color: var(--ctp-overlay1);
+    padding: 1px 8px;
+    border-radius: 8px;
+    background-color: var(--ctp-surface0);
 }
 
-/* Multi-column flow so collapsing a card reflows the cards below it
-   (a grid would keep the row height of the tallest expanded card). */
+/* Card flow — CSS columns so collapsing a card reflows the ones below it */
 .feature-list {
-    columns: 3 340px;
+    columns: 3 320px;
     column-gap: 12px;
-    padding: 12px;
 }
 
-/* Collapsible feature card */
+/* Collapsible module card */
 .feature-card {
-    background-color: var(--ctp-mantle);
+    background-color: var(--ctp-surface0);
     border: 1px solid var(--ctp-surface1);
-    border-radius: 6px;
+    border-radius: 8px;
     overflow: hidden;
     break-inside: avoid;
     margin-bottom: 12px;
+    transition: border-color 0.15s ease;
+}
+
+.feature-card:hover {
+    border-color: var(--ctp-surface2);
 }
 
 .feature-card-header {
     display: flex;
     align-items: center;
+    gap: 8px;
+    padding: 4px 6px 4px 4px;
+}
+
+.feature-card-titlebar {
+    display: flex;
+    align-items: center;
     gap: 10px;
-    width: 100%;
-    padding: 12px 14px;
+    flex: 1;
+    min-width: 0;
+    padding: 10px 8px;
     border: none;
-    background-color: transparent;
+    background: transparent;
     cursor: pointer;
     font-family: inherit;
     text-align: left;
     color: var(--ctp-text);
+    border-radius: 6px;
 }
 
-.feature-card-header:hover {
-    background-color: var(--ctp-surface0);
+.feature-card-titlebar:hover {
+    background-color: var(--ctp-surface1);
 }
 
 .feature-chevron {
@@ -1197,37 +1264,37 @@ body {
 }
 
 .feature-card-title {
-    flex: 1;
     font-size: 0.9rem;
     font-weight: 600;
     color: var(--ctp-text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
-/* Master toggle status pill in the header */
-.feature-master-toggle {
-    font-size: 0.68rem;
-    font-weight: 600;
-    padding: 2px 8px;
-    border-radius: 10px;
-    background-color: var(--ctp-surface1);
-    color: var(--ctp-overlay1);
+/* Master switch pinned to the card header */
+.feature-master-switch {
     flex-shrink: 0;
-}
-
-.feature-master-toggle.on {
-    background-color: rgba(166, 218, 149, 0.2);
-    color: var(--ctp-green);
+    margin-right: 6px;
 }
 
 .feature-card-body {
-    padding: 4px 16px 12px;
-    border-top: 1px solid var(--ctp-surface0);
+    padding: 2px 14px 10px;
+    border-top: 1px solid var(--ctp-surface1);
 }
 
 .feature-card.collapsed .feature-card-body {
     display: none;
 }
 
+.feature-noparams {
+    padding: 12px 0 6px;
+    text-align: center;
+    font-size: 0.78rem;
+    color: var(--ctp-overlay0);
+}
+
+/* Parameter rows */
 .feature-items {
     display: flex;
     flex-direction: column;
@@ -1238,7 +1305,7 @@ body {
     align-items: center;
     justify-content: space-between;
     gap: 16px;
-    padding: 10px 0;
+    padding: 9px 0;
     border-bottom: 1px solid var(--ctp-surface0);
 }
 
@@ -1248,7 +1315,7 @@ body {
 
 .feature-label {
     flex: 1;
-    font-size: 0.85rem;
+    font-size: 0.84rem;
     color: var(--ctp-subtext1);
     cursor: pointer;
     min-width: 0;
@@ -1266,7 +1333,7 @@ body {
     padding: 6px 10px;
     border: 1px solid var(--ctp-surface1);
     border-radius: 4px;
-    background-color: var(--ctp-surface0);
+    background-color: var(--ctp-mantle);
     color: var(--ctp-text);
     font-size: 0.82rem;
     font-family: inherit;
@@ -1278,7 +1345,7 @@ body {
     padding: 6px 10px;
     border: 1px solid var(--ctp-surface1);
     border-radius: 4px;
-    background-color: var(--ctp-surface0);
+    background-color: var(--ctp-mantle);
     color: var(--ctp-text);
     font-size: 0.82rem;
     font-family: inherit;
@@ -1297,7 +1364,7 @@ body {
     border-color: var(--ctp-mauve);
 }
 
-/* A feature's parameters dim and disable while its master toggle is off. */
+/* A module's parameters dim and disable while its master switch is off. */
 .feature-item.feature-disabled {
     opacity: 0.45;
 }
@@ -1311,7 +1378,6 @@ body {
         columns: 1;
     }
 }
-
 /* ── Login Page ─────────────────────────── */
 .login-body {
     min-height: 100vh;
