@@ -99,14 +99,23 @@ function applyFilter() {
 // ── Sections and cards ───────────────────────────────────────────────
 
 function groupSection(group) {
+    const features = group.features || [];
+    // Split cards into two fixed columns. Each column is an independent
+    // vertical stack, so expanding a card in one column never stretches or
+    // re-flows cards in the other column (the same-row coupling a plain grid
+    // would cause). Cards alternate left/right to keep columns even.
+    const left = [];
+    const right = [];
+    features.forEach((f, i) => (i % 2 === 0 ? left : right).push(f));
     return `
         <div class="feature-section" data-group-section="${escapeHtml(group.id)}">
             <div class="feature-section-header">
                 <h3>${escapeHtml(t(group.labelKey))}</h3>
-                <span class="feature-section-count">${(group.features || []).length}</span>
+                <span class="feature-section-count">${features.length}</span>
             </div>
             <div class="feature-list">
-                ${(group.features || []).map(featureCard).join('')}
+                <div class="feature-column">${left.map(featureCard).join('')}</div>
+                <div class="feature-column">${right.map(featureCard).join('')}</div>
             </div>
         </div>`;
 }

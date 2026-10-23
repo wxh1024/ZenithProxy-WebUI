@@ -1202,26 +1202,31 @@ body {
     background-color: var(--ctp-surface0);
 }
 
-/* Stable grid layout: each card occupies a fixed cell so that expanding or
-   collapsing a card only changes that card's height (and, with auto rows,
-   the row below it), never re-flowing cards horizontally into a different
-   column. This replaces the previous CSS-columns masonry, where browsers
-   re-balance column heights and cards visibly jump between columns.
+/* Stable two-column layout: cards are pre-split into two independent vertical
+   columns (`.feature-column`). Because each column is its own flex stack, a
+   card expanding/collapsing only changes that column's height — it can never
+   stretch or shift a card sitting in the *other* column (the same-row
+   coupling that a plain `grid-template-columns` layout would cause).
 
-   `align-items: start` keeps each card at the top of its row instead of
-   stretching, so a tall expanded card doesn't stretch its shorter neighbours.
-   Two columns on wide screens, one on narrow — a simple, predictable grid. */
+   Two columns on wide screens, one on narrow. The columns always sit side by
+   side and never re-flow individual cards horizontally. */
 .feature-list {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    column-gap: 12px;
-    row-gap: 12px;
-    align-items: start;
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+}
+
+.feature-column {
+    flex: 1 1 0;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
 }
 
 @media (max-width: 768px) {
     .feature-list {
-        grid-template-columns: minmax(0, 1fr);
+        flex-direction: column;
     }
 }
 
