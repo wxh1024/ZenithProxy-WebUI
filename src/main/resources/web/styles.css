@@ -1147,10 +1147,11 @@ body {
     color: var(--ctp-lavender);
 }
 
+/* Multi-column flow so collapsing a card reflows the cards below it
+   (a grid would keep the row height of the tallest expanded card). */
 .feature-list {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
-    gap: 12px;
+    columns: 3 340px;
+    column-gap: 12px;
     padding: 12px;
 }
 
@@ -1160,6 +1161,8 @@ body {
     border: 1px solid var(--ctp-surface1);
     border-radius: 6px;
     overflow: hidden;
+    break-inside: avoid;
+    margin-bottom: 12px;
 }
 
 .feature-card-header {
@@ -1305,7 +1308,7 @@ body {
 
 @media (max-width: 768px) {
     .feature-list {
-        grid-template-columns: 1fr;
+        columns: 1;
     }
 }
 
