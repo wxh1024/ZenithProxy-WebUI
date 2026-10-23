@@ -18,6 +18,7 @@ import {
 } from './whitelist.js';
 import {serverConnect, serverDisconnect, serverReconnect, serverShutdown} from './server.js';
 import {initFeatures, loadFeatures} from './features.js';
+import {initBasicConfig, loadBasicConfig} from './basic.js';
 
 // ── Navigation ──────────────────────────────────────────────────────
 
@@ -50,6 +51,9 @@ function navigateTo(page) {
             break;
         case 'features':
             loadFeatures();
+            break;
+        case 'basic':
+            loadBasicConfig();
             break;
         default:
             break;
@@ -102,6 +106,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     initTerminalPage();
     initWhitelist();
     initFeatures();
+    initBasicConfig();
 
     // Inline onclick handlers in index.html resolve against these bindings.
     Object.assign(window, {

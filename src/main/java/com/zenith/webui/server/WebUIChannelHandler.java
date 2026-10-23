@@ -26,6 +26,7 @@ public class WebUIChannelHandler extends SimpleChannelInboundHandler<FullHttpReq
     private final LogStreamHandler logStreamHandler;
     private final WhitelistHandler whitelistHandler;
     private final FeatureHandler featureHandler;
+    private final BasicConfigHandler basicConfigHandler;
     private final I18nHandler i18nHandler;
     private final StaticFileHandler staticFileHandler;
 
@@ -37,6 +38,7 @@ public class WebUIChannelHandler extends SimpleChannelInboundHandler<FullHttpReq
             LogStreamHandler logStreamHandler,
             WhitelistHandler whitelistHandler,
             FeatureHandler featureHandler,
+            BasicConfigHandler basicConfigHandler,
             I18nHandler i18nHandler,
             StaticFileHandler staticFileHandler) {
         this.authHandler = authHandler;
@@ -46,6 +48,7 @@ public class WebUIChannelHandler extends SimpleChannelInboundHandler<FullHttpReq
         this.logStreamHandler = logStreamHandler;
         this.whitelistHandler = whitelistHandler;
         this.featureHandler = featureHandler;
+        this.basicConfigHandler = basicConfigHandler;
         this.i18nHandler = i18nHandler;
         this.staticFileHandler = staticFileHandler;
     }
@@ -114,6 +117,15 @@ public class WebUIChannelHandler extends SimpleChannelInboundHandler<FullHttpReq
                         featureHandler.handleFeatureUpdate(ctx, req);
                     } else {
                         featureHandler.sendMethodNotAllowed(ctx);
+                    }
+                }
+                case "/api/basic" -> {
+                    if (HttpMethod.GET.equals(req.method())) {
+                        basicConfigHandler.handleBasicConfig(ctx);
+                    } else if (HttpMethod.POST.equals(req.method())) {
+                        basicConfigHandler.handleBasicConfigUpdate(ctx, req);
+                    } else {
+                        basicConfigHandler.sendMethodNotAllowed(ctx);
                     }
                 }
                 default -> {

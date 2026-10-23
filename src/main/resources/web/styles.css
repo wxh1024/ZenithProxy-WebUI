@@ -1412,6 +1412,105 @@ body {
     color: var(--ctp-overlay0);
 }
 
+/* ── Basic (connection) Configuration ─────────────────── */
+/* A clean grouped form, distinct from the collapsible feature cards. Each
+   group is a titled block; fields are label-left / control-right rows. */
+
+.basic-groups {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    max-width: 720px;
+}
+
+.basic-section {
+    background-color: var(--ctp-surface0);
+    border: 1px solid var(--ctp-surface1);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.basic-section-header {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--ctp-surface1);
+    background-color: var(--ctp-mantle);
+}
+
+.basic-section-header h3 {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--ctp-text);
+}
+
+.basic-items {
+    display: flex;
+    flex-direction: column;
+}
+
+.basic-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 11px 16px;
+    border-bottom: 1px solid var(--ctp-surface0);
+}
+
+.basic-item:last-child {
+    border-bottom: none;
+}
+
+.basic-label {
+    flex: 1;
+    font-size: 0.86rem;
+    color: var(--ctp-subtext1);
+    cursor: pointer;
+    min-width: 0;
+}
+
+.basic-control {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+}
+
+.basic-control input[type="number"],
+.basic-control input[type="text"] {
+    width: 180px;
+    padding: 7px 10px;
+    border: 1px solid var(--ctp-surface1);
+    border-radius: 4px;
+    background-color: var(--ctp-mantle);
+    color: var(--ctp-text);
+    font-size: 0.82rem;
+    font-family: inherit;
+    transition: border-color 0.15s ease;
+}
+
+.basic-control select {
+    min-width: 180px;
+    padding: 7px 10px;
+    border: 1px solid var(--ctp-surface1);
+    border-radius: 4px;
+    background-color: var(--ctp-mantle);
+    color: var(--ctp-text);
+    font-size: 0.82rem;
+    font-family: inherit;
+    cursor: pointer;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%236e738d' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 8px center;
+    padding-right: 26px;
+}
+
+.basic-control input[type="number"]:focus,
+.basic-control input[type="text"]:focus,
+.basic-control select:focus {
+    outline: none;
+    border-color: var(--ctp-mauve);
+}
+
 /* ── Login Page ─────────────────────────── */
 .login-body {
     min-height: 100vh;
