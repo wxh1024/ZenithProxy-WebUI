@@ -4,6 +4,29 @@
 
 ## [未发布]
 
+## [1.6.0] - 2026-10-23
+
+### 新增
+
+- **独立的基础配置页**：新增「基础配置」导航页与 `GET/POST /api/basic` 接口，集中管理机器人
+  连接核心参数，与功能配置完全独立（独立 handler，锚定 CONFIG 根而非 `client.extra`）。
+    - 目标服务器：地址、端口（`client.server.*`）
+    - 账号认证：登录方式（MSA / DEVICE_CODE / DEVICE_CODE_WITHOUT_DEVICE_TOKEN / PRISM /
+      OFFLINE）、账号用户名、离线 UUID（`authentication.*`）
+    - 连接与心跳：启动时自动连接、心跳间隔与超时、KeepAlive 模式与超时、连接超时（`client.*`）
+    - 代理监听：监听地址、端口（`server.bind.*`）
+    - 后端 `BasicConfigHandler` 采用声明式 schema，反射读写支持 int / 枚举 / `UUID` 类型，
+      写入路径白名单校验，非法路径被拒绝；持久化交由 ZenithProxy 自身。
+- **页面结构规范文档**：新增 `docs/PAGE-STRUCTURE.md`，固化页面展示顺序、每页功能项与
+  排列逻辑、组织原则与验收清单，作为后续开发与验收依据。
+
+### 变更
+
+- **全站扁平直角化**：移除所有 `border-radius`（按钮、输入框、下拉、开关滑块、控制块、
+  图表卡、筛选 chips、卡片、自动补全、登录容器、通知提示），界面改为彻底的扁平直角风格。
+- **功能配置卡片稳定双列**：卡片按奇偶交替分配到两个独立的纵向列容器，展开 / 收起卡片
+  只影响本列高度，不再横向跳列或撑高对侧同排卡片（替换此前的 CSS 多列与纯 grid 布局）。
+
 ### 修复
 
 - **构建产物歧义**：`shadowJar` 的 `archiveClassifier` 为空，与默认的 thin JAR 同名
