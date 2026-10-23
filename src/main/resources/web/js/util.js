@@ -30,7 +30,7 @@ export function showNotification(message, type = 'info') {
         error: 'var(--error-color)',
         warning: 'var(--warning-color)',
     };
-    n.style.cssText = `position:fixed;top:16px;right:16px;padding:12px 20px;border-radius:4px;` +
+    n.style.cssText = `position:fixed;top:16px;right:16px;padding:12px 20px;` +
         `color:var(--ctp-crust);font-weight:500;font-size:0.85rem;z-index:1000;opacity:0;` +
         `transform:translateY(-8px);transition:opacity 0.2s,transform 0.2s;` +
         `background:${colors[type] || 'var(--info-color)'};`;
