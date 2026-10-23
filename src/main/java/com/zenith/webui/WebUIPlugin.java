@@ -135,12 +135,17 @@ public class WebUIPlugin implements ZenithProxyPlugin {
                 dead.add(ch);
                 continue;
             }
+            ByteBuf dup = template.retainedDuplicate();
             try {
-                ch.writeAndFlush(new DefaultHttpContent(template.retainedDuplicate()))
+                ch.writeAndFlush(new DefaultHttpContent(dup))
                         .addListener(f -> {
                             if (!f.isSuccess()) ch.close();
                         });
             } catch (Exception e) {
+                // writeAndFlush threw before taking ownership of the buffer, so the
+                // duplicate retained above has no reader — release it or the frame
+                // leaks one reference count per failure.
+                dup.release();
                 ch.close();
                 dead.add(ch);
             }

@@ -45,6 +45,15 @@ public final class HttpHelper {
     }
 
     /**
+     * JSON payload with an explicit status code. Used for error paths so a failed
+     * request cannot be mistaken for a successful one — {@link #sendJson(ChannelHandlerContext, Object)}
+     * always answers {@code 200}.
+     */
+    public static void sendJson(ChannelHandlerContext ctx, HttpResponseStatus status, Object obj) {
+        writeBody(ctx, status, GSON.toJson(obj).getBytes(StandardCharsets.UTF_8), CONTENT_TYPE_JSON);
+    }
+
+    /**
      * Serialize {@code payload} into a complete Server-Sent Events frame ("data: {...}\n\n").
      */
     public static String sseFrame(Object payload) {

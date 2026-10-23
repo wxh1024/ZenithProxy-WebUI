@@ -444,13 +444,21 @@ public class FeatureHandler {
     /**
      * Every feature path is relative to {@code CONFIG.client.extra} — the object
      * that holds all bot feature toggles and parameters.
+     * <p>
+     * Resolved per access instead of being cached in a {@code static final}: a
+     * static field is bound at class-initialisation time, so any reload that swaps
+     * {@code CONFIG.client.extra} would leave every read and write pointing at the
+     * detached old instance — silently, because {@link #readPath} maps failures to
+     * {@code null}.
      */
-    private static final Object EXTRA_ROOT = CONFIG.client.extra;
+    private static Object extraRoot() {
+        return CONFIG.client.extra;
+    }
 
     /** Resolves {@code "a.b.c"} against CONFIG.client.extra, returning the leaf value or null. */
     private static Object readPath(String path) {
         try {
-            Object current = EXTRA_ROOT;
+            Object current = extraRoot();
             for (String part : path.split("\\.")) {
                 current = field(current, part).get(current);
                 if (current == null) return null;
@@ -463,7 +471,7 @@ public class FeatureHandler {
 
     /** Writes a JSON value into the leaf field at {@code path}, coercing to the field type. */
     private static void writePath(FeatureDef def, JsonElement raw) throws Exception {
-        Object target = EXTRA_ROOT;
+        Object target = extraRoot();
         String[] parts = def.path().split("\\.");
         for (int i = 0; i < parts.length - 1; i++) {
             Field f = field(target, parts[i]);
@@ -482,16 +490,16 @@ public class FeatureHandler {
             return raw.getAsBoolean();
         }
         if (type == int.class || type == Integer.class) {
-            return raw.getAsInt();
+            return inRange(def, raw.getAsInt());
         }
         if (type == long.class || type == Long.class) {
-            return raw.getAsLong();
+            return inRange(def, raw.getAsLong());
         }
         if (type == float.class || type == Float.class) {
-            return raw.getAsFloat();
+            return inRange(def, raw.getAsFloat());
         }
         if (type == double.class || type == Double.class) {
-            return raw.getAsDouble();
+            return inRange(def, raw.getAsDouble());
         }
         if (type == String.class) {
             return raw.getAsString();
@@ -506,6 +514,29 @@ public class FeatureHandler {
             throw new IllegalArgumentException("unknown enum value: " + name + " for " + type.getName());
         }
         throw new IllegalArgumentException("unsupported field type: " + type.getName());
+    }
+
+    /**
+     * Rejects numeric values outside the bounds declared in {@link FeatureDef}.
+     * <p>
+     * Those bounds were previously enforced only by the {@code min}/{@code max}
+     * HTML attributes, which any direct POST bypasses — nothing stopped a request
+     * from writing {@code attackDelayTicks = -1} or a value past the ceiling.
+     *
+     * @return the same value, so the call sites stay single expressions
+     * @throws IllegalArgumentException when out of range; the caller records the
+     *                                  path in {@code rejectedKeys}
+     */
+    private static <T extends Number> T inRange(FeatureDef def, T value) {
+        if (def.min() != null && value.doubleValue() < def.min()) {
+            throw new IllegalArgumentException(
+                    def.path() + " below minimum " + def.min() + ": " + value);
+        }
+        if (def.max() != null && value.doubleValue() > def.max()) {
+            throw new IllegalArgumentException(
+                    def.path() + " above maximum " + def.max() + ": " + value);
+        }
+        return value;
     }
 
     private static Field field(Object target, String name) throws NoSuchFieldException {

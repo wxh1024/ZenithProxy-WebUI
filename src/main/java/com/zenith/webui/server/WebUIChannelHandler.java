@@ -4,11 +4,13 @@ import com.zenith.webui.WebUIPlugin;
 import com.zenith.webui.api.*;
 import com.zenith.webui.auth.AuthController;
 import com.zenith.webui.auth.AuthHandler;
+import com.zenith.webui.http.HttpHelper;
 import com.zenith.webui.staticfile.StaticFileHandler;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.handler.codec.http.*;
+import net.kyori.adventure.text.logger.slf4j.ComponentLogger;
 
 import java.util.Map;
 
@@ -18,6 +20,8 @@ import java.util.Map;
  */
 @ChannelHandler.Sharable
 public class WebUIChannelHandler extends SimpleChannelInboundHandler<FullHttpRequest> {
+
+    private static final ComponentLogger LOG = ComponentLogger.logger("WebUI");
 
     private final AuthHandler authHandler;
     private final AuthController authController;
@@ -138,7 +142,12 @@ public class WebUIChannelHandler extends SimpleChannelInboundHandler<FullHttpReq
                 }
             }
         } catch (Exception e) {
-            com.zenith.webui.http.HttpHelper.sendJson(ctx, Map.of("error", "Internal server error"));
+            // A failed handler must not answer 200 — the browser would treat the
+            // error body as a successful payload. Log it too: the previous version
+            // swallowed the stack trace, so a 500 had no diagnostic trail at all.
+            LOG.warn("Unhandled error handling {} {}", method, path, e);
+            HttpHelper.sendJson(ctx, HttpResponseStatus.INTERNAL_SERVER_ERROR,
+                    Map.of("error", "Internal server error"));
         }
     }
 

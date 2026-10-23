@@ -231,16 +231,16 @@ public class BasicConfigHandler {
             return raw.getAsBoolean();
         }
         if (type == int.class || type == Integer.class) {
-            return raw.getAsInt();
+            return inRange(def, raw.getAsInt());
         }
         if (type == long.class || type == Long.class) {
-            return raw.getAsLong();
+            return inRange(def, raw.getAsLong());
         }
         if (type == float.class || type == Float.class) {
-            return raw.getAsFloat();
+            return inRange(def, raw.getAsFloat());
         }
         if (type == double.class || type == Double.class) {
-            return raw.getAsDouble();
+            return inRange(def, raw.getAsDouble());
         }
         if (type == String.class) {
             return raw.getAsString();
@@ -259,6 +259,25 @@ public class BasicConfigHandler {
             throw new IllegalArgumentException("unknown enum value: " + name + " for " + type.getName());
         }
         throw new IllegalArgumentException("unsupported field type: " + type.getName());
+    }
+
+    /**
+     * Rejects numeric values outside the bounds declared in {@link BasicDef}.
+     * The bounds were previously advertised to the browser but never enforced on
+     * the server, so a direct POST could write an out-of-range port or timeout.
+     *
+     * @return the same value, so the call sites stay single expressions
+     */
+    private static <T extends Number> T inRange(BasicDef def, T value) {
+        if (def.min() != null && value.doubleValue() < def.min()) {
+            throw new IllegalArgumentException(
+                    def.path() + " below minimum " + def.min() + ": " + value);
+        }
+        if (def.max() != null && value.doubleValue() > def.max()) {
+            throw new IllegalArgumentException(
+                    def.path() + " above maximum " + def.max() + ": " + value);
+        }
+        return value;
     }
 
     private static Field field(Object target, String name) throws NoSuchFieldException {

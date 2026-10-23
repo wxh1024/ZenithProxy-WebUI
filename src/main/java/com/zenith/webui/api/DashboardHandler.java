@@ -157,12 +157,15 @@ public class DashboardHandler {
                     dead.add(ch);
                     continue;
                 }
+                ByteBuf dup = template.retainedDuplicate();
                 try {
-                    ch.writeAndFlush(new io.netty.handler.codec.http.DefaultHttpContent(template.retainedDuplicate()))
+                    ch.writeAndFlush(new io.netty.handler.codec.http.DefaultHttpContent(dup))
                             .addListener(f -> {
                                 if (!f.isSuccess()) ch.close();
                             });
                 } catch (Exception e) {
+                    // Ownership never transferred — release the retained duplicate.
+                    dup.release();
                     ch.close();
                     dead.add(ch);
                 }
