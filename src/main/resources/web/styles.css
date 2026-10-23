@@ -1202,31 +1202,24 @@ body {
     background-color: var(--ctp-surface0);
 }
 
-/* Responsive waterfall grid: 1 / 2 / 3 columns depending on viewport width.
-   Cards are equal-width; `align-items: start` keeps each card at its own
-   height so collapsed cards shrink without forcing row gaps. */
+/* True waterfall (masonry) flow: cards fill each column top-to-bottom, so
+   collapsing a card lets the cards below it shift up to fill the gap — unlike
+   a grid, which would leave a whole-row hole. Equal-width columns keep the
+   layout tidy at 3 / 2 / 1 columns depending on viewport width. */
 .feature-list {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-    gap: 12px;
-    align-items: start;
-}
-
-@media (min-width: 1024px) {
-    .feature-list {
-        grid-template-columns: repeat(3, 1fr);
-    }
+    column-count: 3;
+    column-gap: 12px;
 }
 
 @media (max-width: 1023px) {
     .feature-list {
-        grid-template-columns: repeat(2, 1fr);
+        column-count: 2;
     }
 }
 
 @media (max-width: 768px) {
     .feature-list {
-        grid-template-columns: 1fr;
+        column-count: 1;
     }
 }
 
@@ -1236,6 +1229,8 @@ body {
     border: 1px solid var(--ctp-surface1);
     border-radius: 8px;
     overflow: hidden;
+    break-inside: avoid;
+    margin-bottom: 12px;
     transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
