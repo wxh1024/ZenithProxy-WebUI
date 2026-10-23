@@ -25,8 +25,12 @@ let groups = [];
 /** Pending debounced save of the most recent change. */
 let saveTimer = null;
 
-/** Collapsed feature ids, persisted across re-renders and language switches. */
+/** Collapsed feature ids. All parameterised modules start collapsed; the user
+ *  expands them by clicking the title bar. */
 const collapsed = new Set();
+
+/** Set true after the first load so we don't re-collapse user-expanded cards. */
+let collapsedInitialized = false;
 
 /** Currently selected category filter ('all' or a group id). */
 let activeFilter = 'all';
@@ -38,6 +42,15 @@ export async function loadFeatures() {
     const data = await apiCall('/features');
     if (!data || !data.groups) return;
     groups = data.groups;
+    if (!collapsedInitialized) {
+        collapsedInitialized = true;
+        // Default-collapse every module that has parameters (i.e. has >1 field).
+        for (const group of groups) {
+            for (const feature of group.features || []) {
+                if ((feature.items || []).length > 1) collapsed.add(feature.id);
+            }
+        }
+    }
     render();
 }
 

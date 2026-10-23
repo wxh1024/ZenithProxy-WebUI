@@ -166,8 +166,13 @@ public class FeatureHandler {
                             FeatureDef.bool("click.holdLeftClick", "feat.click.holdLeftClick"),
                             FeatureDef.bool("click.holdRightClick", "feat.click.holdRightClick"),
                             FeatureDef.bool("click.holdSneak", "feat.click.holdSneak"),
+                            FeatureDef.bool("click.hasRotation", "feat.click.hasRotation"),
                             FeatureDef.integer("click.holdRightClickInterval", "feat.click.holdRightClickInterval", 1, 1000),
-                            FeatureDef.integer("click.holdLeftClickInterval", "feat.click.holdLeftClickInterval", 0, 1000)
+                            FeatureDef.integer("click.holdLeftClickInterval", "feat.click.holdLeftClickInterval", 0, 1000),
+                            FeatureDef.number("click.additionalBlockReach", "feat.click.additionalBlockReach", 0, 10),
+                            FeatureDef.number("click.additionalEntityReach", "feat.click.additionalEntityReach", 0, 10),
+                            FeatureDef.enums("click.holdRightClickMode", "feat.click.holdRightClickMode",
+                                    List.of("MAIN_HAND", "OFF_HAND", "ALTERNATE_HANDS"))
                     ))
             )),
             new FeatureGroup("connection", "feat.group.connection", List.of(
@@ -267,13 +272,50 @@ public class FeatureHandler {
                                     List.of("RANDOM_OFFSET", "CONSTANT_OFFSET", "AT_LOCATION"))
                     ))
             )),
+            new FeatureGroup("automation", "feat.group.automation", List.of(
+                    new Feature("pathfinder", "feat.pathfinder.title", List.of(
+                            FeatureDef.bool("pathfinder.allowBreak", "feat.pathfinder.allowBreak"),
+                            FeatureDef.bool("pathfinder.allowPlace", "feat.pathfinder.allowPlace"),
+                            FeatureDef.bool("pathfinder.allowSprint", "feat.pathfinder.allowSprint"),
+                            FeatureDef.bool("pathfinder.allowInventory", "feat.pathfinder.allowInventory"),
+                            FeatureDef.bool("pathfinder.allowDownward", "feat.pathfinder.allowDownward"),
+                            FeatureDef.bool("pathfinder.allowParkour", "feat.pathfinder.allowParkour"),
+                            FeatureDef.bool("pathfinder.allowLongFall", "feat.pathfinder.allowLongFall"),
+                            FeatureDef.bool("pathfinder.autoTool", "feat.pathfinder.autoTool"),
+                            FeatureDef.bool("pathfinder.itemSaver", "feat.pathfinder.itemSaver"),
+                            FeatureDef.integer("pathfinder.itemSaverThreshold", "feat.pathfinder.itemSaverThreshold", 1, 100),
+                            FeatureDef.bool("pathfinder.preferSilkTouch", "feat.pathfinder.preferSilkTouch"),
+                            FeatureDef.bool("pathfinder.renderPath", "feat.pathfinder.renderPath"),
+                            FeatureDef.integer("pathfinder.followRadius", "feat.pathfinder.followRadius", 1, 100),
+                            FeatureDef.integer("pathfinder.maxFallHeightNoWater", "feat.pathfinder.maxFallHeightNoWater", 1, 100)
+                    )),
+                    new Feature("spawnPatrol", "feat.spawnPatrol.title", List.of(
+                            FeatureDef.bool("spawnPatrol.enabled", "feat.spawnPatrol.enabled"),
+                            FeatureDef.bool("spawnPatrol.ignoreFriends", "feat.spawnPatrol.ignoreFriends"),
+                            FeatureDef.bool("spawnPatrol.targetOnlyNakeds", "feat.spawnPatrol.targetOnlyNakeds"),
+                            FeatureDef.bool("spawnPatrol.targetAttackers", "feat.spawnPatrol.targetAttackers"),
+                            FeatureDef.bool("spawnPatrol.stickyTargeting", "feat.spawnPatrol.stickyTargeting"),
+                            FeatureDef.bool("spawnPatrol.nether", "feat.spawnPatrol.nether"),
+                            FeatureDef.bool("spawnPatrol.stuckKill", "feat.spawnPatrol.stuckKill"),
+                            FeatureDef.integer("spawnPatrol.maxPatrolRange", "feat.spawnPatrol.maxPatrolRange", 10, 100000)
+                    )),
+                    new Feature("pearlLoader", "feat.pearlLoader.title", List.of(
+                            FeatureDef.bool("pearlLoader.returnToStartPos", "feat.pearlLoader.returnToStartPos")
+                    )),
+                    new Feature("tasks", "feat.tasks.title", List.of(
+                            FeatureDef.bool("tasks.enabled", "feat.tasks.enabled"),
+                            FeatureDef.bool("tasks.logCommandActionOutput", "feat.tasks.logCommandActionOutput"),
+                            FeatureDef.bool("tasks.taskCommandExecutedNotification", "feat.tasks.taskCommandExecutedNotification")
+                    ))
+            )),
             new FeatureGroup("misc", "feat.group.misc", List.of(
                     new Feature("replayMod", "feat.replayMod.title", List.of(
                             FeatureDef.bool("replayMod.sendRecordingsToDiscord", "feat.replayMod.sendRecordingsToDiscord"),
                             FeatureDef.integer("replayMod.maxRecordingTimeMins", "feat.replayMod.maxRecordingTimeMins", 0, 1440),
                             FeatureDef.enums("replayMod.autoRecordMode", "feat.replayMod.autoRecordMode",
                                     List.of("NONE", "PROXY_CONNECTED", "ONLINE", "PLAYER_CONNECTED", "HEALTH")),
-                            FeatureDef.integer("replayMod.replayRecordingHealthThreshold", "feat.replayMod.replayRecordingHealthThreshold", 1, 20)
+                            FeatureDef.integer("replayMod.replayRecordingHealthThreshold", "feat.replayMod.replayRecordingHealthThreshold", 1, 20),
+                            FeatureDef.bool("replayMod.fileIOUploadIfTooLarge", "feat.replayMod.fileIOUploadIfTooLarge")
                     ))
             ))
     );
