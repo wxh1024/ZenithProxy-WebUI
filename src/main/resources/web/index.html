@@ -38,6 +38,12 @@
                         cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>
                 <span class="text"><span data-i18n="nav.players">白名单管理</span></span>
             </li>
+            <li class="nav-item" data-page="features">
+                <span class="icon"><svg fill="none" height="18" stroke="currentColor" stroke-width="2"
+                                        viewBox="0 0 24 24"
+                                        width="18"><circle cx="12" cy="12" r="3"/><path d="M12 1v4"/><path d="M12 19v4"/><path d="M1 12h4"/><path d="M19 12h4"/><path d="m4.22 4.22 2.83 2.83"/><path d="m16.95 16.95 2.83 2.83"/><path d="m4.22 19.78 2.83-2.83"/><path d="m16.95 7.05 2.83-2.83"/></svg></span>
+                <span class="text"><span data-i18n="nav.features">功能配置</span></span>
+            </li>
         </ul>
         <div class="nav-footer">
             <div class="lang-switch">
@@ -329,6 +335,17 @@
                 <div class="whitelist-list" id="whitelistList">
                     <!-- Whitelist entries are rendered by js/whitelist.js -->
                 </div>
+            </div>
+        </section>
+
+        <!-- Feature Configuration Page -->
+        <section class="page" id="features">
+            <div class="page-header">
+                <h2 data-i18n="page.features.title">功能配置</h2>
+                <span class="feature-hint" data-i18n="feat.hint">改动即时保存并生效</span>
+            </div>
+            <div class="feature-groups" id="featureGroups">
+                <!-- Feature groups rendered by js/features.js -->
             </div>
         </section>
     </main>

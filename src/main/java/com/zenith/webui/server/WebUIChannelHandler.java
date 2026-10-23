@@ -25,6 +25,7 @@ public class WebUIChannelHandler extends SimpleChannelInboundHandler<FullHttpReq
     private final DashboardHandler dashboardHandler;
     private final LogStreamHandler logStreamHandler;
     private final WhitelistHandler whitelistHandler;
+    private final FeatureHandler featureHandler;
     private final I18nHandler i18nHandler;
     private final StaticFileHandler staticFileHandler;
 
@@ -35,6 +36,7 @@ public class WebUIChannelHandler extends SimpleChannelInboundHandler<FullHttpReq
             DashboardHandler dashboardHandler,
             LogStreamHandler logStreamHandler,
             WhitelistHandler whitelistHandler,
+            FeatureHandler featureHandler,
             I18nHandler i18nHandler,
             StaticFileHandler staticFileHandler) {
         this.authHandler = authHandler;
@@ -43,6 +45,7 @@ public class WebUIChannelHandler extends SimpleChannelInboundHandler<FullHttpReq
         this.dashboardHandler = dashboardHandler;
         this.logStreamHandler = logStreamHandler;
         this.whitelistHandler = whitelistHandler;
+        this.featureHandler = featureHandler;
         this.i18nHandler = i18nHandler;
         this.staticFileHandler = staticFileHandler;
     }
@@ -104,6 +107,15 @@ public class WebUIChannelHandler extends SimpleChannelInboundHandler<FullHttpReq
                 case "/api/dashboard" -> dashboardHandler.handleDashboard(ctx);
                 case "/api/dashboard/stream" -> dashboardHandler.handleDashboardStream(ctx);
                 case "/api/whitelist" -> whitelistHandler.handleWhitelist(ctx, req);
+                case "/api/features" -> {
+                    if (HttpMethod.GET.equals(req.method())) {
+                        featureHandler.handleFeatures(ctx);
+                    } else if (HttpMethod.POST.equals(req.method())) {
+                        featureHandler.handleFeatureUpdate(ctx, req);
+                    } else {
+                        featureHandler.sendMethodNotAllowed(ctx);
+                    }
+                }
                 default -> {
                     if (path.startsWith("/api/")) {
                         // Unknown API route: returning index.html would look like a success

@@ -1119,6 +1119,117 @@ body {
     font-size: 0.88rem;
 }
 
+/* ── Feature Configuration ──────────────────── */
+.feature-hint {
+    font-size: 0.78rem;
+    color: var(--ctp-overlay1);
+}
+
+.feature-groups {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+    gap: 16px;
+}
+
+.feature-group {
+    background-color: var(--ctp-surface0);
+    border: none;
+}
+
+.feature-group-header {
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--ctp-surface1);
+}
+
+.feature-group-header h3 {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--ctp-lavender);
+}
+
+.feature-items {
+    padding: 6px 16px 14px;
+}
+
+.feature-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--ctp-surface0);
+}
+
+.feature-item:last-child {
+    border-bottom: none;
+}
+
+.feature-label {
+    flex: 1;
+    font-size: 0.85rem;
+    color: var(--ctp-subtext1);
+    cursor: pointer;
+    min-width: 0;
+}
+
+.feature-control {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+}
+
+.feature-control input[type="number"],
+.feature-control input[type="text"] {
+    width: 110px;
+    padding: 6px 10px;
+    border: 1px solid var(--ctp-surface1);
+    border-radius: 4px;
+    background-color: var(--ctp-mantle);
+    color: var(--ctp-text);
+    font-size: 0.82rem;
+    font-family: inherit;
+    transition: border-color 0.15s ease;
+}
+
+.feature-control select {
+    min-width: 110px;
+    padding: 6px 10px;
+    border: 1px solid var(--ctp-surface1);
+    border-radius: 4px;
+    background-color: var(--ctp-mantle);
+    color: var(--ctp-text);
+    font-size: 0.82rem;
+    font-family: inherit;
+    cursor: pointer;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%236e738d' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 8px center;
+    padding-right: 26px;
+}
+
+.feature-control input[type="number"]:focus,
+.feature-control input[type="text"]:focus,
+.feature-control select:focus {
+    outline: none;
+    border-color: var(--ctp-mauve);
+}
+
+/* A feature's parameters dim and disable while its master toggle is off. */
+.feature-item.feature-disabled {
+    opacity: 0.45;
+}
+
+.feature-item.feature-disabled .feature-label {
+    color: var(--ctp-overlay0);
+}
+
+@media (max-width: 768px) {
+    .feature-groups {
+        grid-template-columns: 1fr;
+    }
+}
+
 /* ── Login Page ─────────────────────────── */
 .login-body {
     min-height: 100vh;

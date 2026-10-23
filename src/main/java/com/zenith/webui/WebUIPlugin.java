@@ -176,6 +176,7 @@ public class WebUIPlugin implements ZenithProxyPlugin {
                 dashboardHandler,
                 new LogStreamHandler(),
                 new WhitelistHandler(),
+                new FeatureHandler(),
                 new I18nHandler(configManager.getConfig()),
                 new StaticFileHandler(pluginDir));
 
