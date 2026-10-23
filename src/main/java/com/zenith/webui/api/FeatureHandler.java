@@ -22,10 +22,12 @@ import static com.zenith.Globals.CONFIG;
  * Handles /api/features — grouped read/write of the bot's feature toggles and
  * parameters under {@code CONFIG.client.extra.*}.
  *
- * <p>The schema is declared declaratively as a list of {@link FeatureDef}s, each
- * binding an i18n label key to a dot-separated path into the CONFIG object.
- * Values are read and written reflectively so new fields only need a new
- * {@code FeatureDef} entry — no hand-written getter/setter boilerplate.
+ * <p>The schema is declared declaratively and rendered as a two-level tree:
+ * <em>groups</em> (broad categories like "Combat") contain <em>features</em>
+ * (individual collapsible modules like "KillAura"), each of which owns a flat
+ * list of {@link FeatureDef} fields. Every field binds an i18n label key to a
+ * dot-separated path into the CONFIG object, read and written reflectively so
+ * a new field only needs a new {@code FeatureDef} entry.
  *
  * <p>Persistence is delegated to ZenithProxy itself (it owns {@code CONFIG}
  * serialization), matching the existing whitelist handler.
@@ -59,85 +61,235 @@ public class FeatureHandler {
         }
     }
 
-    /** A titled group of related features. */
-    private record FeatureGroup(String id, String labelKey, List<FeatureDef> items) {
+    /** A collapsible feature module: a title plus its toggle/parameter fields. */
+    private record Feature(String id, String labelKey, List<FeatureDef> items) {
     }
 
-    /** The complete, ordered feature schema. */
+    /** A broad category of related features. */
+    private record FeatureGroup(String id, String labelKey, List<Feature> features) {
+    }
+
+    /** The complete, ordered feature schema (two-level: group → feature → field). */
     private static final List<FeatureGroup> GROUPS = List.of(
             new FeatureGroup("combat", "feat.group.combat", List.of(
-                    FeatureDef.bool("killAura.enabled", "feat.killAura.enabled"),
-                    FeatureDef.bool("killAura.targetPlayers", "feat.killAura.targetPlayers"),
-                    FeatureDef.bool("killAura.targetHostileMobs", "feat.killAura.targetHostileMobs"),
-                    FeatureDef.bool("killAura.targetNeutralMobs", "feat.killAura.targetNeutralMobs"),
-                    FeatureDef.bool("killAura.switchWeapon", "feat.killAura.switchWeapon"),
-                    FeatureDef.integer("killAura.attackDelayTicks", "feat.killAura.attackDelayTicks", 1, 1000),
-                    FeatureDef.enums("killAura.priority", "feat.killAura.priority", List.of("NONE", "NEAREST")),
-                    FeatureDef.bool("autoTotem.enabled", "feat.autoTotem.enabled"),
-                    FeatureDef.integer("autoTotem.healthThreshold", "feat.autoTotem.healthThreshold", 1, 20),
-                    FeatureDef.bool("autoTotem.inGame", "feat.autoTotem.inGame"),
-                    FeatureDef.bool("autoTotem.totemPopAlert", "feat.autoTotem.totemPopAlert"),
-                    FeatureDef.bool("autoArmor.enabled", "feat.autoArmor.enabled"),
-                    FeatureDef.bool("autoMend.enabled", "feat.autoMend.enabled")
+                    new Feature("killAura", "feat.killAura.title", List.of(
+                            FeatureDef.bool("killAura.enabled", "feat.killAura.enabled"),
+                            FeatureDef.bool("killAura.targetPlayers", "feat.killAura.targetPlayers"),
+                            FeatureDef.bool("killAura.targetHostileMobs", "feat.killAura.targetHostileMobs"),
+                            FeatureDef.bool("killAura.targetNeutralMobs", "feat.killAura.targetNeutralMobs"),
+                            FeatureDef.bool("killAura.onlyNeutralAggressive", "feat.killAura.onlyNeutralAggressive"),
+                            FeatureDef.bool("killAura.ignoreNamedMobs", "feat.killAura.ignoreNamedMobs"),
+                            FeatureDef.bool("killAura.switchWeapon", "feat.killAura.switchWeapon"),
+                            FeatureDef.integer("killAura.attackDelayTicks", "feat.killAura.attackDelayTicks", 1, 1000),
+                            FeatureDef.bool("killAura.tpsSync", "feat.killAura.tpsSync"),
+                            FeatureDef.bool("killAura.raycast", "feat.killAura.raycast"),
+                            FeatureDef.enums("killAura.priority", "feat.killAura.priority", List.of("NONE", "NEAREST"))
+                    )),
+                    new Feature("autoTotem", "feat.autoTotem.title", List.of(
+                            FeatureDef.bool("autoTotem.enabled", "feat.autoTotem.enabled"),
+                            FeatureDef.integer("autoTotem.healthThreshold", "feat.autoTotem.healthThreshold", 1, 20),
+                            FeatureDef.bool("autoTotem.inGame", "feat.autoTotem.inGame"),
+                            FeatureDef.bool("autoTotem.totemPopAlert", "feat.autoTotem.totemPopAlert"),
+                            FeatureDef.bool("autoTotem.totemPopAlertMention", "feat.autoTotem.totemPopAlertMention"),
+                            FeatureDef.bool("autoTotem.noTotemsAlert", "feat.autoTotem.noTotemsAlert"),
+                            FeatureDef.bool("autoTotem.noTotemsAlertMention", "feat.autoTotem.noTotemsAlertMention")
+                    )),
+                    new Feature("autoArmor", "feat.autoArmor.title", List.of(
+                            FeatureDef.bool("autoArmor.enabled", "feat.autoArmor.enabled")
+                    )),
+                    new Feature("autoMend", "feat.autoMend.title", List.of(
+                            FeatureDef.bool("autoMend.enabled", "feat.autoMend.enabled")
+                    ))
             )),
             new FeatureGroup("survival", "feat.group.survival", List.of(
-                    FeatureDef.bool("autoEat.enabled", "feat.autoEat.enabled"),
-                    FeatureDef.integer("autoEat.healthThreshold", "feat.autoEat.healthThreshold", 1, 20),
-                    FeatureDef.integer("autoEat.hungerThreshold", "feat.autoEat.hungerThreshold", 1, 20),
-                    FeatureDef.bool("autoEat.allowUnsafeFood", "feat.autoEat.allowUnsafeFood"),
-                    FeatureDef.bool("autoRespawn.enabled", "feat.autoRespawn.enabled"),
-                    FeatureDef.integer("autoRespawn.delayMillis", "feat.autoRespawn.delayMillis", 0, 60000),
-                    FeatureDef.bool("autoFish.enabled", "feat.autoFish.enabled"),
-                    FeatureDef.bool("autoOmen.enabled", "feat.autoOmen.enabled"),
-                    FeatureDef.bool("autoOmen.consumeFullOmenStack", "feat.autoOmen.consumeFullOmenStack")
+                    new Feature("autoEat", "feat.autoEat.title", List.of(
+                            FeatureDef.bool("autoEat.enabled", "feat.autoEat.enabled"),
+                            FeatureDef.integer("autoEat.healthThreshold", "feat.autoEat.healthThreshold", 1, 20),
+                            FeatureDef.integer("autoEat.hungerThreshold", "feat.autoEat.hungerThreshold", 1, 20),
+                            FeatureDef.bool("autoEat.allowUnsafeFood", "feat.autoEat.allowUnsafeFood"),
+                            FeatureDef.bool("autoEat.warning", "feat.autoEat.warning"),
+                            FeatureDef.bool("autoEat.warningMention", "feat.autoEat.warningMention"),
+                            FeatureDef.enums("autoEat.mode", "feat.autoEat.mode", List.of("ALL", "BLACKLIST", "WHITELIST"))
+                    )),
+                    new Feature("autoRespawn", "feat.autoRespawn.title", List.of(
+                            FeatureDef.bool("autoRespawn.enabled", "feat.autoRespawn.enabled"),
+                            FeatureDef.integer("autoRespawn.delayMillis", "feat.autoRespawn.delayMillis", 0, 60000)
+                    )),
+                    new Feature("autoFish", "feat.autoFish.title", List.of(
+                            FeatureDef.bool("autoFish.enabled", "feat.autoFish.enabled"),
+                            FeatureDef.number("autoFish.yaw", "feat.autoFish.yaw", -180, 180),
+                            FeatureDef.number("autoFish.pitch", "feat.autoFish.pitch", -90, 90)
+                    )),
+                    new Feature("autoOmen", "feat.autoOmen.title", List.of(
+                            FeatureDef.bool("autoOmen.enabled", "feat.autoOmen.enabled"),
+                            FeatureDef.bool("autoOmen.consumeFullOmenStack", "feat.autoOmen.consumeFullOmenStack"),
+                            FeatureDef.enums("autoOmen.mode", "feat.autoOmen.mode",
+                                    List.of("EFFECT_AND_RAID_INACTIVE", "EFFECT_INACTIVE", "CONSTANT")),
+                            FeatureDef.integer("autoOmen.constantTicks", "feat.autoOmen.constantTicks", 1, 100000)
+                    )),
+                    new Feature("autoDrop", "feat.autoDrop.title", List.of(
+                            FeatureDef.bool("autoDrop.enabled", "feat.autoDrop.enabled"),
+                            FeatureDef.enums("autoDrop.mode", "feat.autoDrop.mode", List.of("ALL", "BLACKLIST", "WHITELIST")),
+                            FeatureDef.integer("autoDrop.delayTicks", "feat.autoDrop.delayTicks", 1, 100000),
+                            FeatureDef.bool("autoDrop.dropStack", "feat.autoDrop.dropStack")
+                    )),
+                    new Feature("antiKick", "feat.antiKick.title", List.of(
+                            FeatureDef.bool("antiKick.enabled", "feat.antiKick.enabled"),
+                            FeatureDef.integer("antiKick.playerInactivityKickMins", "feat.antiKick.playerInactivityKickMins", 1, 1440),
+                            FeatureDef.integer("antiKick.minWalkDistance", "feat.antiKick.minWalkDistance", 1, 100)
+                    ))
             )),
             new FeatureGroup("movement", "feat.group.movement", List.of(
-                    FeatureDef.bool("antiafk.enabled", "feat.antiafk.enabled"),
-                    FeatureDef.bool("antiafk.actions.walk", "feat.antiafk.walk"),
-                    FeatureDef.bool("antiafk.actions.swingHand", "feat.antiafk.swingHand"),
-                    FeatureDef.bool("antiafk.actions.rotate", "feat.antiafk.rotate"),
-                    FeatureDef.bool("antiafk.actions.jump", "feat.antiafk.jump"),
-                    FeatureDef.bool("antiafk.actions.sneak", "feat.antiafk.sneak"),
-                    FeatureDef.integer("antiafk.actions.walkDistance", "feat.antiafk.walkDistance", 1, 64),
-                    FeatureDef.integer("antiafk.actions.walkDelayTicks", "feat.antiafk.walkDelayTicks", 1, 100000),
-                    FeatureDef.integer("antiafk.actions.rotateDelayTicks", "feat.antiafk.rotateDelayTicks", 1, 100000),
-                    FeatureDef.integer("antiafk.actions.swingDelayTicks", "feat.antiafk.swingDelayTicks", 1, 100000),
-                    FeatureDef.bool("antiafk.actions.safeWalk", "feat.antiafk.safeWalk"),
-                    FeatureDef.bool("spook.enabled", "feat.spook.enabled")
+                    new Feature("antiafk", "feat.antiafk.title", List.of(
+                            FeatureDef.bool("antiafk.enabled", "feat.antiafk.enabled"),
+                            FeatureDef.bool("antiafk.actions.walk", "feat.antiafk.walk"),
+                            FeatureDef.integer("antiafk.actions.walkDistance", "feat.antiafk.walkDistance", 1, 64),
+                            FeatureDef.integer("antiafk.actions.walkDelayTicks", "feat.antiafk.walkDelayTicks", 1, 100000),
+                            FeatureDef.bool("antiafk.actions.safeWalk", "feat.antiafk.safeWalk"),
+                            FeatureDef.bool("antiafk.actions.swingHand", "feat.antiafk.swingHand"),
+                            FeatureDef.integer("antiafk.actions.swingDelayTicks", "feat.antiafk.swingDelayTicks", 1, 100000),
+                            FeatureDef.bool("antiafk.actions.rotate", "feat.antiafk.rotate"),
+                            FeatureDef.integer("antiafk.actions.rotateDelayTicks", "feat.antiafk.rotateDelayTicks", 1, 100000),
+                            FeatureDef.bool("antiafk.actions.jump", "feat.antiafk.jump"),
+                            FeatureDef.bool("antiafk.actions.jumpOnlyInLiquid", "feat.antiafk.jumpOnlyInLiquid"),
+                            FeatureDef.bool("antiafk.actions.sneak", "feat.antiafk.sneak")
+                    )),
+                    new Feature("spook", "feat.spook.title", List.of(
+                            FeatureDef.bool("spook.enabled", "feat.spook.enabled"),
+                            FeatureDef.enums("spook.spookTargetingMode", "feat.spook.targetingMode",
+                                    List.of("NEAREST", "VISUAL_RANGE"))
+                    )),
+                    new Feature("stalk", "feat.stalk.title", List.of(
+                            FeatureDef.bool("stalk.enabled", "feat.stalk.enabled")
+                    )),
+                    new Feature("click", "feat.click.title", List.of(
+                            FeatureDef.bool("click.holdLeftClick", "feat.click.holdLeftClick"),
+                            FeatureDef.bool("click.holdRightClick", "feat.click.holdRightClick"),
+                            FeatureDef.bool("click.holdSneak", "feat.click.holdSneak"),
+                            FeatureDef.integer("click.holdRightClickInterval", "feat.click.holdRightClickInterval", 1, 1000),
+                            FeatureDef.integer("click.holdLeftClickInterval", "feat.click.holdLeftClickInterval", 0, 1000)
+                    ))
             )),
             new FeatureGroup("connection", "feat.group.connection", List.of(
-                    FeatureDef.bool("autoReconnect.enabled", "feat.autoReconnect.enabled"),
-                    FeatureDef.integer("autoReconnect.delaySeconds", "feat.autoReconnect.delaySeconds", 0, 3600),
-                    FeatureDef.integer("autoReconnect.maxAttempts", "feat.autoReconnect.maxAttempts", 0, 100000),
-                    FeatureDef.bool("utility.actions.autoDisconnect.enabled", "feat.autoDisconnect.enabled"),
-                    FeatureDef.bool("utility.actions.autoDisconnect.healthDisconnect", "feat.autoDisconnect.healthDisconnect"),
-                    FeatureDef.integer("utility.actions.autoDisconnect.health", "feat.autoDisconnect.health", 1, 20),
-                    FeatureDef.bool("utility.actions.autoDisconnect.thunder", "feat.autoDisconnect.thunder")
+                    new Feature("autoReconnect", "feat.autoReconnect.title", List.of(
+                            FeatureDef.bool("autoReconnect.enabled", "feat.autoReconnect.enabled"),
+                            FeatureDef.integer("autoReconnect.delaySeconds", "feat.autoReconnect.delaySeconds", 0, 3600),
+                            FeatureDef.integer("autoReconnect.maxAttempts", "feat.autoReconnect.maxAttempts", 0, 100000)
+                    )),
+                    new Feature("autoDisconnect", "feat.autoDisconnect.title", List.of(
+                            FeatureDef.bool("utility.actions.autoDisconnect.enabled", "feat.autoDisconnect.enabled"),
+                            FeatureDef.bool("utility.actions.autoDisconnect.healthDisconnect", "feat.autoDisconnect.healthDisconnect"),
+                            FeatureDef.integer("utility.actions.autoDisconnect.health", "feat.autoDisconnect.health", 1, 20),
+                            FeatureDef.bool("utility.actions.autoDisconnect.thunder", "feat.autoDisconnect.thunder"),
+                            FeatureDef.bool("utility.actions.autoDisconnect.onTotemPop", "feat.autoDisconnect.onTotemPop"),
+                            FeatureDef.integer("utility.actions.autoDisconnect.minTotemsRemaining", "feat.autoDisconnect.minTotemsRemaining", 0, 1000),
+                            FeatureDef.bool("utility.actions.autoDisconnect.onUnknownPlayerInVisualRange", "feat.autoDisconnect.onUnknownPlayerInVisualRange"),
+                            FeatureDef.bool("utility.actions.autoDisconnect.whilePlayerConnected", "feat.autoDisconnect.whilePlayerConnected"),
+                            FeatureDef.bool("utility.actions.autoDisconnect.autoClientDisconnect", "feat.autoDisconnect.autoClientDisconnect"),
+                            FeatureDef.bool("utility.actions.autoDisconnect.cancelAutoReconnect", "feat.autoDisconnect.cancelAutoReconnect")
+                    )),
+                    new Feature("activeHours", "feat.activeHours.title", List.of(
+                            FeatureDef.bool("utility.actions.activeHours.enabled", "feat.activeHours.enabled"),
+                            FeatureDef.bool("utility.actions.activeHours.forceReconnect", "feat.activeHours.forceReconnect"),
+                            FeatureDef.bool("utility.actions.activeHours.queueEtaCalc", "feat.activeHours.queueEtaCalc"),
+                            FeatureDef.bool("utility.actions.activeHours.fullSessionUntilNextDisconnect", "feat.activeHours.fullSessionUntilNextDisconnect")
+                    )),
+                    new Feature("sessionTimeLimit", "feat.sessionTimeLimit.title", List.of(
+                            FeatureDef.bool("sessionTimeLimit.enabled", "feat.sessionTimeLimit.enabled"),
+                            FeatureDef.bool("sessionTimeLimit.dynamic2b2tSessionTimeLimit", "feat.sessionTimeLimit.dynamic2b2tSessionTimeLimit")
+                    ))
             )),
             new FeatureGroup("chat", "feat.group.chat", List.of(
-                    FeatureDef.bool("chat.enabled", "feat.chat.enabled"),
-                    FeatureDef.bool("chat.hideChat", "feat.chat.hideChat"),
-                    FeatureDef.bool("chat.hideWhispers", "feat.chat.hideWhispers"),
-                    FeatureDef.bool("chat.hideDeathMessages", "feat.chat.hideDeathMessages"),
-                    FeatureDef.bool("chat.showConnectionMessages", "feat.chat.showConnectionMessages"),
-                    FeatureDef.bool("autoReply.enabled", "feat.autoReply.enabled"),
-                    FeatureDef.integer("autoReply.cooldownSeconds", "feat.autoReply.cooldownSeconds", 0, 86400),
-                    FeatureDef.text("autoReply.message", "feat.autoReply.message"),
-                    FeatureDef.bool("spammer.enabled", "feat.spammer.enabled"),
-                    FeatureDef.integer("spammer.delayTicks", "feat.spammer.delayTicks", 1, 100000)
+                    new Feature("chat", "feat.chat.title", List.of(
+                            FeatureDef.bool("chat.enabled", "feat.chat.enabled"),
+                            FeatureDef.bool("chat.hideChat", "feat.chat.hideChat"),
+                            FeatureDef.bool("chat.hideWhispers", "feat.chat.hideWhispers"),
+                            FeatureDef.bool("chat.hideDeathMessages", "feat.chat.hideDeathMessages"),
+                            FeatureDef.bool("chat.showConnectionMessages", "feat.chat.showConnectionMessages"),
+                            FeatureDef.bool("chat.insertClickableLinks", "feat.chat.insertClickableLinks"),
+                            FeatureDef.bool("chat.prefixChats", "feat.chat.prefixChats"),
+                            FeatureDef.text("chat.prefix", "feat.chat.prefix"),
+                            FeatureDef.bool("chat.suffixChats", "feat.chat.suffixChats"),
+                            FeatureDef.text("chat.suffix", "feat.chat.suffix")
+                    )),
+                    new Feature("autoReply", "feat.autoReply.title", List.of(
+                            FeatureDef.bool("autoReply.enabled", "feat.autoReply.enabled"),
+                            FeatureDef.integer("autoReply.cooldownSeconds", "feat.autoReply.cooldownSeconds", 0, 86400),
+                            FeatureDef.text("autoReply.message", "feat.autoReply.message")
+                    )),
+                    new Feature("spammer", "feat.spammer.title", List.of(
+                            FeatureDef.bool("spammer.enabled", "feat.spammer.enabled"),
+                            FeatureDef.bool("spammer.whisper", "feat.spammer.whisper"),
+                            FeatureDef.bool("spammer.whilePlayerConnected", "feat.spammer.whilePlayerConnected"),
+                            FeatureDef.integer("spammer.delayTicks", "feat.spammer.delayTicks", 1, 100000),
+                            FeatureDef.bool("spammer.randomOrder", "feat.spammer.randomOrder"),
+                            FeatureDef.bool("spammer.appendRandom", "feat.spammer.appendRandom")
+                    ))
             )),
             new FeatureGroup("alerts", "feat.group.alerts", List.of(
-                    FeatureDef.bool("visualRange.enabled", "feat.visualRange.enabled"),
-                    FeatureDef.bool("visualRange.enterAlert", "feat.visualRange.enterAlert"),
-                    FeatureDef.bool("visualRange.leaveAlert", "feat.visualRange.leaveAlert"),
-                    FeatureDef.bool("visualRange.logoutAlert", "feat.visualRange.logoutAlert"),
-                    FeatureDef.bool("visualRange.enterWhisper", "feat.visualRange.enterWhisper"),
-                    FeatureDef.text("visualRange.enterWhisperMessage", "feat.visualRange.enterWhisperMessage"),
-                    FeatureDef.bool("queueWarning.enabled", "feat.queueWarning.enabled"),
-                    FeatureDef.bool("antiLeak.enabled", "feat.antiLeak.enabled"),
-                    FeatureDef.bool("antiLeak.rangeCheck", "feat.antiLeak.rangeCheck")
+                    new Feature("visualRange", "feat.visualRange.title", List.of(
+                            FeatureDef.bool("visualRange.enabled", "feat.visualRange.enabled"),
+                            FeatureDef.bool("visualRange.ignoreFriends", "feat.visualRange.ignoreFriends"),
+                            FeatureDef.bool("visualRange.enterAlert", "feat.visualRange.enterAlert"),
+                            FeatureDef.bool("visualRange.enterAlertMention", "feat.visualRange.enterAlertMention"),
+                            FeatureDef.bool("visualRange.leaveAlert", "feat.visualRange.leaveAlert"),
+                            FeatureDef.bool("visualRange.logoutAlert", "feat.visualRange.logoutAlert"),
+                            FeatureDef.bool("visualRange.enterWhisper", "feat.visualRange.enterWhisper"),
+                            FeatureDef.text("visualRange.enterWhisperMessage", "feat.visualRange.enterWhisperMessage"),
+                            FeatureDef.integer("visualRange.enterWhisperCooldownSeconds", "feat.visualRange.enterWhisperCooldownSeconds", 0, 86400)
+                    )),
+                    new Feature("queueWarning", "feat.queueWarning.title", List.of(
+                            FeatureDef.bool("queueWarning.enabled", "feat.queueWarning.enabled")
+                    ))
+            )),
+            new FeatureGroup("protection", "feat.group.protection", List.of(
+                    new Feature("antiLeak", "feat.antiLeak.title", List.of(
+                            FeatureDef.bool("antiLeak.enabled", "feat.antiLeak.enabled"),
+                            FeatureDef.bool("antiLeak.rangeCheck", "feat.antiLeak.rangeCheck"),
+                            FeatureDef.number("antiLeak.rangeFactor", "feat.antiLeak.rangeFactor", 1, 1000)
+                    )),
+                    new Feature("actionLimiter", "feat.actionLimiter.title", List.of(
+                            FeatureDef.bool("actionLimiter.enabled", "feat.actionLimiter.enabled"),
+                            FeatureDef.bool("actionLimiter.allowRespawn", "feat.actionLimiter.allowRespawn"),
+                            FeatureDef.bool("actionLimiter.allowMovement", "feat.actionLimiter.allowMovement"),
+                            FeatureDef.integer("actionLimiter.movementDistance", "feat.actionLimiter.movementDistance", 1, 100000),
+                            FeatureDef.bool("actionLimiter.allowEnderChest", "feat.actionLimiter.allowEnderChest"),
+                            FeatureDef.bool("actionLimiter.allowBlockBreaking", "feat.actionLimiter.allowBlockBreaking"),
+                            FeatureDef.bool("actionLimiter.allowInventory", "feat.actionLimiter.allowInventory"),
+                            FeatureDef.bool("actionLimiter.allowUseItem", "feat.actionLimiter.allowUseItem"),
+                            FeatureDef.bool("actionLimiter.allowChat", "feat.actionLimiter.allowChat"),
+                            FeatureDef.bool("actionLimiter.allowServerCommands", "feat.actionLimiter.allowServerCommands")
+                    )),
+                    new Feature("coordObfuscation", "feat.coordObfuscation.title", List.of(
+                            FeatureDef.bool("coordObfuscation.enabled", "feat.coordObfuscation.enabled"),
+                            FeatureDef.bool("coordObfuscation.validateSetup", "feat.coordObfuscation.validateSetup"),
+                            FeatureDef.enums("coordObfuscation.mode", "feat.coordObfuscation.mode",
+                                    List.of("RANDOM_OFFSET", "CONSTANT_OFFSET", "AT_LOCATION"))
+                    ))
+            )),
+            new FeatureGroup("misc", "feat.group.misc", List.of(
+                    new Feature("replayMod", "feat.replayMod.title", List.of(
+                            FeatureDef.bool("replayMod.sendRecordingsToDiscord", "feat.replayMod.sendRecordingsToDiscord"),
+                            FeatureDef.integer("replayMod.maxRecordingTimeMins", "feat.replayMod.maxRecordingTimeMins", 0, 1440),
+                            FeatureDef.enums("replayMod.autoRecordMode", "feat.replayMod.autoRecordMode",
+                                    List.of("NONE", "PROXY_CONNECTED", "ONLINE", "PLAYER_CONNECTED", "HEALTH")),
+                            FeatureDef.integer("replayMod.replayRecordingHealthThreshold", "feat.replayMod.replayRecordingHealthThreshold", 1, 20)
+                    ))
             ))
     );
+
+    /** Flattens every declared field path for validation and serialization. */
+    private static Map<String, FeatureDef> allFields() {
+        Map<String, FeatureDef> byPath = new LinkedHashMap<>();
+        for (FeatureGroup group : GROUPS) {
+            for (Feature feature : group.features()) {
+                for (FeatureDef def : feature.items()) {
+                    byPath.put(def.path(), def);
+                }
+            }
+        }
+        return byPath;
+    }
 
     /** Loads the full grouped schema with current values. */
     public void handleFeatures(ChannelHandlerContext ctx) {
@@ -147,42 +299,55 @@ public class FeatureHandler {
             JsonObject g = new JsonObject();
             g.addProperty("id", group.id());
             g.addProperty("labelKey", group.labelKey());
-            JsonArray items = new JsonArray();
-            for (FeatureDef def : group.items()) {
-                JsonObject it = new JsonObject();
-                it.addProperty("key", def.path());
-                it.addProperty("type", def.type());
-                it.addProperty("labelKey", def.labelKey());
-                if (def.min() != null) it.addProperty("min", def.min());
-                if (def.max() != null) it.addProperty("max", def.max());
-                if (def.options() != null) {
-                    JsonArray opts = new JsonArray();
-                    def.options().forEach(opts::add);
-                    it.add("options", opts);
+            JsonArray features = new JsonArray();
+            for (Feature feature : group.features()) {
+                JsonObject f = new JsonObject();
+                f.addProperty("id", feature.id());
+                f.addProperty("labelKey", feature.labelKey());
+                JsonArray items = new JsonArray();
+                for (FeatureDef def : feature.items()) {
+                    items.add(serializeField(def));
                 }
-                // Current value — reflectively read, null → null.
-                Object value = readPath(def.path());
-                if (value == null) {
-                    it.add("value", null);
-                } else if (value instanceof Number num) {
-                    it.addProperty("value", num);
-                } else if (value instanceof Boolean b) {
-                    it.addProperty("value", b);
-                } else if (value instanceof Enum<?> e) {
-                    it.addProperty("value", e.name());
-                } else {
-                    it.addProperty("value", String.valueOf(value));
-                }
-                items.add(it);
+                f.add("items", items);
+                features.add(f);
             }
-            g.add("items", items);
+            g.add("features", features);
             groups.add(g);
         }
         root.add("groups", groups);
         HttpHelper.sendJson(ctx, root);
     }
 
-    /** Accepts a flat map of path → value and applies each, then re-returns the schema. */
+    /** Serializes one field definition plus its current value. */
+    private JsonObject serializeField(FeatureDef def) {
+        JsonObject it = new JsonObject();
+        it.addProperty("key", def.path());
+        it.addProperty("type", def.type());
+        it.addProperty("labelKey", def.labelKey());
+        if (def.min() != null) it.addProperty("min", def.min());
+        if (def.max() != null) it.addProperty("max", def.max());
+        if (def.options() != null) {
+            JsonArray opts = new JsonArray();
+            def.options().forEach(opts::add);
+            it.add("options", opts);
+        }
+        // Current value — reflectively read, null → null.
+        Object value = readPath(def.path());
+        if (value == null) {
+            it.add("value", null);
+        } else if (value instanceof Number num) {
+            it.addProperty("value", num);
+        } else if (value instanceof Boolean b) {
+            it.addProperty("value", b);
+        } else if (value instanceof Enum<?> e) {
+            it.addProperty("value", e.name());
+        } else {
+            it.addProperty("value", String.valueOf(value));
+        }
+        return it;
+    }
+
+    /** Accepts a flat map of path → value and applies each. */
     public void handleFeatureUpdate(ChannelHandlerContext ctx, FullHttpRequest req) {
         try {
             String body = req.content().toString(CharsetUtil.UTF_8);
@@ -199,12 +364,7 @@ public class FeatureHandler {
 
             // Validate against the declared schema first so no path can be written
             // that is not explicitly whitelisted.
-            Map<String, FeatureDef> byPath = new LinkedHashMap<>();
-            for (FeatureGroup group : GROUPS) {
-                for (FeatureDef def : group.items()) {
-                    byPath.put(def.path(), def);
-                }
-            }
+            Map<String, FeatureDef> byPath = allFields();
 
             List<String> applied = new ArrayList<>();
             List<String> rejected = new ArrayList<>();
@@ -312,7 +472,7 @@ public class FeatureHandler {
         return f;
     }
 
-    /** Convenience for method-not-allowed and other plain responses (unused now). */
+    /** Convenience for method-not-allowed and other plain responses. */
     public static void sendMethodNotAllowed(ChannelHandlerContext ctx) {
         HttpHelper.sendError(ctx, HttpResponseStatus.METHOD_NOT_ALLOWED, "Method Not Allowed");
     }

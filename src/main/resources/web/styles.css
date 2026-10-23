@@ -1126,8 +1126,8 @@ body {
 }
 
 .feature-groups {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+    display: flex;
+    flex-direction: column;
     gap: 16px;
 }
 
@@ -1147,8 +1147,87 @@ body {
     color: var(--ctp-lavender);
 }
 
+.feature-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+    gap: 12px;
+    padding: 12px;
+}
+
+/* Collapsible feature card */
+.feature-card {
+    background-color: var(--ctp-mantle);
+    border: 1px solid var(--ctp-surface1);
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.feature-card-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 12px 14px;
+    border: none;
+    background-color: transparent;
+    cursor: pointer;
+    font-family: inherit;
+    text-align: left;
+    color: var(--ctp-text);
+}
+
+.feature-card-header:hover {
+    background-color: var(--ctp-surface0);
+}
+
+.feature-chevron {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--ctp-overlay1);
+    transition: transform 0.15s ease;
+    flex-shrink: 0;
+}
+
+.feature-card:not(.collapsed) .feature-chevron {
+    transform: rotate(90deg);
+}
+
+.feature-card-title {
+    flex: 1;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--ctp-text);
+}
+
+/* Master toggle status pill in the header */
+.feature-master-toggle {
+    font-size: 0.68rem;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 10px;
+    background-color: var(--ctp-surface1);
+    color: var(--ctp-overlay1);
+    flex-shrink: 0;
+}
+
+.feature-master-toggle.on {
+    background-color: rgba(166, 218, 149, 0.2);
+    color: var(--ctp-green);
+}
+
+.feature-card-body {
+    padding: 4px 16px 12px;
+    border-top: 1px solid var(--ctp-surface0);
+}
+
+.feature-card.collapsed .feature-card-body {
+    display: none;
+}
+
 .feature-items {
-    padding: 6px 16px 14px;
+    display: flex;
+    flex-direction: column;
 }
 
 .feature-item {
@@ -1184,7 +1263,7 @@ body {
     padding: 6px 10px;
     border: 1px solid var(--ctp-surface1);
     border-radius: 4px;
-    background-color: var(--ctp-mantle);
+    background-color: var(--ctp-surface0);
     color: var(--ctp-text);
     font-size: 0.82rem;
     font-family: inherit;
@@ -1196,7 +1275,7 @@ body {
     padding: 6px 10px;
     border: 1px solid var(--ctp-surface1);
     border-radius: 4px;
-    background-color: var(--ctp-mantle);
+    background-color: var(--ctp-surface0);
     color: var(--ctp-text);
     font-size: 0.82rem;
     font-family: inherit;
@@ -1225,7 +1304,7 @@ body {
 }
 
 @media (max-width: 768px) {
-    .feature-groups {
+    .feature-list {
         grid-template-columns: 1fr;
     }
 }
