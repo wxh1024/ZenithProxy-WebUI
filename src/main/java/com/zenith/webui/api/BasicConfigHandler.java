@@ -116,7 +116,11 @@ public class BasicConfigHandler {
             groups.add(g);
         }
         root.add("groups", groups);
-        HttpHelper.sendJson(ctx, root);
+        // GSON_NULLS: a field whose current value is null (e.g. authentication.offlineUUID)
+        // must still carry an explicit "value": null. serializeField writes JsonNull, and the
+        // default Gson silently drops null members, so the key vanished from the payload and
+        // the contract "every item has a value" only held by accident on the frontend.
+        HttpHelper.sendJson(ctx, root, HttpHelper.GSON_NULLS);
     }
 
     /** Serializes one field definition plus its current value. */

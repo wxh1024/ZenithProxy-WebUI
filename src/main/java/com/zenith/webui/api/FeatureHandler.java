@@ -357,7 +357,10 @@ public class FeatureHandler {
             groups.add(g);
         }
         root.add("groups", groups);
-        HttpHelper.sendJson(ctx, root);
+        // GSON_NULLS for the same reason as BasicConfigHandler: a null-valued field
+        // (e.g. an unset chat.prefix) must still emit "value": null instead of
+        // dropping the key, which the frontend would read as "field missing".
+        HttpHelper.sendJson(ctx, root, HttpHelper.GSON_NULLS);
     }
 
     /** Serializes one field definition plus its current value. */

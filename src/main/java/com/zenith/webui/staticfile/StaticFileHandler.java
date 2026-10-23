@@ -7,6 +7,7 @@ import io.netty.channel.ChannelHandlerContext;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
+import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -100,7 +101,16 @@ public class StaticFileHandler {
      * {@link Path#resolve}; the containment check below closes that hole.
      */
     private byte[] loadWebDirFile(String urlPath) {
-        Path candidate = webDir.resolve(urlPath.substring(1)).normalize();
+        Path candidate;
+        try {
+            candidate = webDir.resolve(urlPath.substring(1)).normalize();
+        } catch (InvalidPathException e) {
+            // Windows rejects characters such as * ? " < > | outright, so no file can
+            // match. Report a miss (the caller answers 404) rather than letting the
+            // exception escape to the channel handler, which would surface as a 500
+            // for what is really a bad URL.
+            return null;
+        }
         if (!candidate.startsWith(webDir)) {
             return null;
         }
