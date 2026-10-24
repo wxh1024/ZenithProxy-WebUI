@@ -235,6 +235,9 @@ public class MapHandler {
 
     private Map<String, Object> playerSnapshot() {
         try {
+            // The player cache keeps a default entity while disconnected, which would
+            // otherwise render a bot marker sitting at 0,0 in a blank world.
+            if (!isConnected()) return null;
             final var playerCache = CACHE.getPlayerCache();
             if (playerCache.getThePlayer() == null) return null;
             final Map<String, Object> player = new LinkedHashMap<>();

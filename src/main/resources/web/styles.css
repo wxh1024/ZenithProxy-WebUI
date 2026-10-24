@@ -1638,9 +1638,11 @@ body {
 
 .map-canvas-wrap {
     position: relative;
-    aspect-ratio: 4 / 3;
-    min-height: 320px;
-    max-height: 70vh;
+    /* No aspect-ratio here: combining it with max-height makes the browser
+       shrink the WIDTH to keep the ratio, which leaves a dead strip on the
+       right of the card that reads as a mask over the map. A height range
+       lets the canvas always span the full card width. */
+    height: clamp(360px, 66vh, 780px);
     background-color: var(--ctp-crust);
     overflow: hidden;
 }
@@ -1770,6 +1772,6 @@ body {
     }
 
     .map-canvas-wrap {
-        min-height: 260px;
+        height: 320px;
     }
 }
