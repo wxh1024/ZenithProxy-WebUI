@@ -1682,13 +1682,6 @@ body {
     pointer-events: none;
 }
 
-.map-footer {
-    padding: 8px 14px;
-    border-top: 1px solid var(--border-color);
-    color: var(--ctp-overlay0);
-    font-size: 0.72rem;
-}
-
 .map-panel {
     background-color: var(--ctp-mantle);
     border: 1px solid var(--border-color);

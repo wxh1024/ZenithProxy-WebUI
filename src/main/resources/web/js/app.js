@@ -23,7 +23,6 @@ import {
     activateMap,
     initMap,
     mapRecenter,
-    mapRefresh,
     mapStopPath,
     mapZoomIn,
     mapZoomOut,
@@ -140,7 +139,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         mapZoomIn,
         mapZoomOut,
         mapRecenter,
-        mapRefresh,
         mapStopPath,
     });
 

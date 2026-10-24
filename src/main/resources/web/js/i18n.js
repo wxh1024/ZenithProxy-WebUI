@@ -94,7 +94,6 @@ export const TRANSLATIONS = {
         // Map page
         'page.map.title': '地图与寻路',
         'map.title': 'Map',
-        'map.hint': '点击地图任意位置让机器人寻路过去；拖动平移，滚轮缩放',
         'map.offline': '机器人未连接，地图暂无数据',
         'map.bot': '机器人坐标',
         'map.facing': '朝向',
@@ -120,7 +119,6 @@ export const TRANSLATIONS = {
         'map.zoomIn': '放大',
         'map.zoomOut': '缩小',
         'map.recenter': '回到机器人',
-        'map.refresh': '刷新地图',
 
         'term.welcome': 'Welcome to ZenithProxy Terminal',
         'term.lastLogin': '上次登录:',
@@ -472,7 +470,6 @@ export const TRANSLATIONS = {
         // Map page
         'page.map.title': 'Map & Pathing',
         'map.title': 'Map',
-        'map.hint': 'Click anywhere on the map to path there; drag to pan, scroll to zoom',
         'map.offline': 'Bot is not connected — no map data',
         'map.bot': 'Bot position',
         'map.facing': 'Facing',
@@ -498,7 +495,6 @@ export const TRANSLATIONS = {
         'map.zoomIn': 'Zoom in',
         'map.zoomOut': 'Zoom out',
         'map.recenter': 'Centre on bot',
-        'map.refresh': 'Refresh map',
 
         'term.welcome': 'Welcome to ZenithProxy Terminal',
         'term.lastLogin': 'Last login:',

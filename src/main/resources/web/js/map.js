@@ -150,7 +150,7 @@ function getTile(tx, tz, scale, fetchTile) {
     const now = Date.now();
     let entry = tileCache.get(key);
     if (!entry) {
-        entry = {img: null, state: 'idle', at: now, pending: false};
+        entry = {img: null, state: 'idle', at: now, touched: now, pending: false};
         tileCache.set(key, entry);
         trimTileCache();
     }
@@ -161,11 +161,29 @@ function getTile(tx, tz, scale, fetchTile) {
     return entry;
 }
 
+/**
+ * Drops cached tiles once the budget is exceeded, least-recently-drawn first.
+ *
+ * <p>Evicting purely by insertion order deleted tiles belonging to the level
+ * being displayed — they were fetched before the newest ones — so a zoom could
+ * re-request a tile it was drawing, which shows up as a flash of background.
+ * Levels currently on screen are never evicted.
+ */
 function trimTileCache() {
-    while (tileCache.size > MAX_CACHED_TILES) {
-        const oldest = tileCache.keys().next();
-        if (oldest.done) break;
-        tileCache.delete(oldest.value);
+    if (tileCache.size <= MAX_CACHED_TILES) return;
+    const activeLevels = new Set([String(view.tileScale), String(view.prevTileScale)]);
+    const candidates = [];
+    for (const [key, entry] of tileCache) {
+        const level = key.slice(0, key.indexOf('/'));
+        if (activeLevels.has(level)) continue;
+        candidates.push([key, entry.touched || 0]);
+    }
+    candidates.sort((a, b) => a[1] - b[1]);
+    let excess = tileCache.size - MAX_CACHED_TILES;
+    for (const [key] of candidates) {
+        if (excess <= 0) break;
+        tileCache.delete(key);
+        excess--;
     }
 }
 
@@ -246,12 +264,14 @@ function drawTileLayer(scale, fetchTiles) {
     const lastX = Math.floor((view.cx + halfWBlocks) / span);
     const firstZ = Math.floor((view.cz - halfHBlocks) / span);
     const lastZ = Math.floor((view.cz + halfHBlocks) / span);
+    const now = Date.now();
 
     for (let tx = firstX; tx <= lastX; tx++) {
         const left = screenX(tx * span);
         const drawLeft = crisp ? Math.round(left) : left;
         for (let tz = firstZ; tz <= lastZ; tz++) {
             const entry = getTile(tx, tz, scale, fetchTiles);
+            entry.touched = now;
             if (entry.state !== 'ready' || !entry.img) continue;
             const top = crisp ? Math.round(screenY(tz * span)) : screenY(tz * span);
             const drawSize = crisp ? TILE_PX : size;
@@ -636,15 +656,6 @@ export function mapRecenter() {
         view.cz = view.player.z;
     }
     requestDraw();
-}
-
-/** Forces a re-render of every visible tile (also drops the browser's copies). */
-export function mapRefresh() {
-    for (const [key, entry] of tileCache) {
-        if (key.startsWith(`${view.tileScale}/`)) entry.at = 0;
-    }
-    requestDraw();
-    poll();
 }
 
 export async function mapStopPath() {
