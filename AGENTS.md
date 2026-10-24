@@ -66,7 +66,12 @@ src/main/resources/
       terminal.js   # log stream, scrollback, command input, export
       whitelist.js  # whitelist CRUD
       server.js     # connect/disconnect/reconnect/shutdown tiles
-      map.js        # canvas minimap, tile cache, click-to-path, path overlay
+      map.js        # map page controller: lifecycle, polling, input, panel
+      map/          # map engine (no DOM outside renderer.js)
+        constants.js  # tile geometry, zoom range, refresh TTL, colours
+        camera.js     # view transform + zoom ladder (pure geometry)
+        tileStore.js  # browser tile cache: loading, retry, TTL, eviction
+        renderer.js   # one frame: tiles → grid → path → markers
       util.js       # HTML escaping, toasts, ping colouring
       app.js        # entry point: auth gate, navigation, language switcher, wiring
       login.js      # login page controller
@@ -120,6 +125,11 @@ plugins/webui/
   404.
 - **Whitelist management**: Full CRUD API at `/api/whitelist`. Directly modifies the main ZenithProxy CONFIG object
   (persistence is handled by ZenithProxy itself).
+- **Map frontend is split into camera / store / renderer**: `js/map.js` is only the page controller; the
+  geometry lives in `map/camera.js`, caching in `map/tileStore.js`, drawing in `map/renderer.js`. The
+  renderer always paints the *best available* resolution per cell — if the active zoom level has no tile
+  for a cell it draws a cached tile from another level, scaled — which is why zooming never blanks ground
+  the bot has already explored.
 - **Map tiles come from the live chunk cache, not a tile server**: `MapTileRenderer` scans each column top-down
   (ZenithProxy deliberately does not keep height maps — they go stale on block updates) and skips sections whose
   `isBlockCountEmpty()` is true. Unloaded chunks stay transparent so the page shows the real extent of what the bot
