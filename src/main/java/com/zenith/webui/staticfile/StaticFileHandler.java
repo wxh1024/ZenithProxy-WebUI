@@ -74,7 +74,10 @@ public class StaticFileHandler {
         }
 
         if (content != null) {
-            HttpHelper.sendBytes(ctx, content, HttpHelper.getContentType(path));
+            // no-cache (revalidate) — these are the SPA's JS/CSS/HTML and they
+            // change on every deploy; without this header the browser would keep
+            // serving a stale module long after the backend has been replaced.
+            HttpHelper.sendBytes(ctx, content, HttpHelper.getContentType(path), "no-cache");
         } else if (looksLikeAsset(path)) {
             // A missing .js/.css/.png must 404 rather than silently return the
             // SPA HTML — the browser would fail on the MIME type with a far
@@ -87,7 +90,7 @@ public class StaticFileHandler {
                 content = loadWebDirFile("/index.html");
             }
             if (content != null) {
-                HttpHelper.sendBytes(ctx, content, "text/html; charset=utf-8");
+                HttpHelper.sendBytes(ctx, content, "text/html; charset=utf-8", "no-cache");
             } else {
                 HttpHelper.sendNotFound(ctx);
             }

@@ -188,6 +188,12 @@ async function poll() {
     store.setLoadedArea(data.view || null);
 
     acceptSample(state.player);
+    // Movement-end handling: once the bot is no longer pathing, kill any
+    // residual easing so the marker stops exactly on the reported position.
+    if (sample.has && (state.status === 'arrived' || state.status === 'idle')) {
+        marker.x = sample.x;
+        marker.z = sample.z;
+    }
     updatePanel();
     requestFrame();
 }
