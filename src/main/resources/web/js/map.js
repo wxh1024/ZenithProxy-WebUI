@@ -20,7 +20,7 @@ import {showNotification} from './util.js';
 /** Tile edge in pixels (must match MapTileRenderer.TILE_PX). */
 const TILE_PX = 256;
 /** A visible tile is re-requested this often so block edits show up. */
-const TILE_TTL_MS = 8000;
+const TILE_TTL_MS = 4000;
 /** Blocks per pixel. Must match MapHandler.isSupportedScale(). */
 const ZOOM_LEVELS = [0.5, 1, 2, 4, 8];
 const DEFAULT_ZOOM_INDEX = 1;
@@ -30,7 +30,6 @@ const MAX_CACHED_TILES = 140;
 const POLL_MS = 1000;
 
 const COLOR = {
-    background: '#11111b',
     unloaded: '#181926',
     grid: 'rgba(110, 115, 141, 0.22)',
     gridLabel: 'rgba(147, 154, 183, 0.7)',
@@ -136,16 +135,49 @@ function trimTileCache() {
 export function requestDraw() {
     if (drawQueued) return;
     drawQueued = true;
+    // rAF never fires in a hidden tab, so scheduling it there would latch
+    // `drawQueued` at true and freeze the map forever after the tab is hidden once.
+    if (document.hidden) {
+        drawQueued = false;
+        draw();
+        return;
+    }
     requestAnimationFrame(() => {
         drawQueued = false;
         draw();
     });
 }
 
+/**
+ * Keeps the drawing coordinate space equal to the canvas' real CSS box.
+ *
+ * <p>Measuring once on activation is not enough: the element can be re-laid out
+ * later (window resize, panel/grid reflow), and a stale width shifts every
+ * drawn tile plus every screen→world conversion, which desynchronises both the
+ * picture and click targets. Re-checking per frame is a couple of layout reads.
+ */
+function syncCanvasSize() {
+    if (!canvas || !ctx) return false;
+    const width = canvas.clientWidth;
+    const height = canvas.clientHeight;
+    if (!width || !height) return false;
+    if (width === view.width && height === view.height) return true;
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = Math.round(width * dpr);
+    canvas.height = Math.round(height * dpr);
+    view.width = width;
+    view.height = height;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    return true;
+}
+
 function draw() {
-    if (!ctx || !view.width || !view.height) return;
+    if (!syncCanvasSize()) return;
     ctx.imageSmoothingEnabled = false;
-    ctx.fillStyle = COLOR.background;
+    // One flat "no data" tone behind everything: painting per-tile rectangles
+    // instead leaves the uncovered strip on the right/bottom a different shade,
+    // which reads as a mask laid over part of the map.
+    ctx.fillStyle = COLOR.unloaded;
     ctx.fillRect(0, 0, view.width, view.height);
 
     const span = tileSpan();
@@ -160,9 +192,6 @@ function draw() {
         for (let tz = firstZ; tz <= lastZ; tz++) {
             const left = Math.round(screenX(tx * span));
             const top = Math.round(screenY(tz * span));
-            // Placeholder shows through transparent (unloaded) pixels.
-            ctx.fillStyle = COLOR.unloaded;
-            ctx.fillRect(left, top, TILE_PX, TILE_PX);
             const entry = getTile(tx, tz);
             if (entry.state === 'ready' && entry.img) {
                 ctx.drawImage(entry.img, left, top, TILE_PX, TILE_PX);
@@ -299,17 +328,8 @@ function drawMarkers() {
 
 // ── Layout ──────────────────────────────────────────────────────────
 
-function resize() {
-    if (!canvas || !wrap) return;
-    const width = wrap.clientWidth;
-    const height = wrap.clientHeight;
-    if (!width || !height) return;
-    const dpr = window.devicePixelRatio || 1;
-    canvas.width = Math.round(width * dpr);
-    canvas.height = Math.round(height * dpr);
-    view.width = width;
-    view.height = height;
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+/** Called by the ResizeObserver — the size itself is re-read on every draw. */
+function requestLayout() {
     requestDraw();
 }
 
@@ -466,11 +486,13 @@ async function poll() {
 // ── Public API (also exposed on window for inline handlers) ─────────
 
 export function mapZoomIn() {
-    setZoom(ZOOM_LEVELS[Math.min(ZOOM_LEVELS.length - 1, ZOOM_LEVELS.indexOf(view.scale) + 1)]);
+    // `scale` is blocks per pixel: a LOWER value means closer, so zooming in
+    // walks the level list backwards.
+    setZoom(ZOOM_LEVELS[Math.max(0, ZOOM_LEVELS.indexOf(view.scale) - 1)]);
 }
 
 export function mapZoomOut() {
-    setZoom(ZOOM_LEVELS[Math.max(0, ZOOM_LEVELS.indexOf(view.scale) - 1)]);
+    setZoom(ZOOM_LEVELS[Math.min(ZOOM_LEVELS.length - 1, ZOOM_LEVELS.indexOf(view.scale) + 1)]);
 }
 
 function setZoom(scale) {
@@ -526,9 +548,16 @@ export function initMap() {
     // Right-click on a map is a pan gesture, not a context menu.
     canvas.addEventListener('contextmenu', event => event.preventDefault());
 
-    resizeObserver = new ResizeObserver(resize);
+    resizeObserver = new ResizeObserver(requestLayout);
     resizeObserver.observe(wrap);
-    resize();
+
+    // A background tab stops rAF and throttles timers; refresh as soon as the
+    // page is visible again instead of waiting for the next poll to catch up.
+    document.addEventListener('visibilitychange', () => {
+        if (document.hidden) return;
+        requestDraw();
+        if (active) poll();
+    });
 
     onLanguageChange(() => {
         updatePanel();
@@ -539,7 +568,6 @@ export function initMap() {
 /** Called by the router when the map page becomes visible. */
 export function activateMap() {
     active = true;
-    resize();
     updatePanel();
     poll();
     if (!pollTimer) pollTimer = setInterval(poll, POLL_MS);

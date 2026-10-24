@@ -39,7 +39,7 @@ public final class MapTileRenderer {
     /** Edge length of one tile in pixels. */
     public static final int TILE_PX = 256;
     /** A cached tile older than this is re-rendered (world edits, bot movement). */
-    private static final long CACHE_TTL_MS = 6_000L;
+    private static final long CACHE_TTL_MS = 3_000L;
     private static final int CACHE_MAX_TILES = 64;
     /** Marker for "this column has no visible block" (distinct from height 0). */
     private static final long NO_COLUMN = Long.MIN_VALUE;
