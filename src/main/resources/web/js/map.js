@@ -10,6 +10,12 @@
  * arrive from `/api/map/state` (1 Hz poll while the page is visible). Clicking
  * the canvas POSTs `/api/map/path`, which drives ZenithProxy's own pathfinder —
  * the browser never computes a route, it only draws what the server reports.
+ *
+ * Zoom is continuous-ish: each notch moves 1.25× along a level ladder (so one
+ * notch is a small step), and the scale itself is animated geometrically between
+ * levels. Tiles are only requested for the settled level — during the ~190 ms
+ * transition the previous level's tiles are stretched under the new ones, so no
+ * frame is ever left with a hole.
  */
 
 import {API_BASE, apiCall} from './api.js';
@@ -21,13 +27,29 @@ import {showNotification} from './util.js';
 const TILE_PX = 256;
 /** A visible tile is re-requested this often so block edits show up. */
 const TILE_TTL_MS = 4000;
-/** Blocks per pixel. Must match MapHandler.isSupportedScale(). */
-const ZOOM_LEVELS = [0.5, 1, 2, 4, 8];
-const DEFAULT_ZOOM_INDEX = 1;
+/** Blocks per pixel. Must stay inside MapHandler's accepted range. */
+const MIN_SCALE = 0.1;
+const MAX_SCALE = 8;
+/** Ladder ratio per zoom notch — 1.25 is a deliberately small step. */
+const ZOOM_STEP = 1.25;
+/** Duration of the zoom transition. */
+const ZOOM_DURATION_MS = 190;
+const DEFAULT_SCALE = 1;
 /** Grid line spacing candidates, in blocks. */
-const GRID_STEPS = [16, 32, 64, 128, 256, 512, 1024, 2048, 4096];
-const MAX_CACHED_TILES = 140;
+const GRID_STEPS = [8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096];
+const MAX_CACHED_TILES = 200;
 const POLL_MS = 1000;
+/** Wheel pixels that add up to one notch. */
+const WHEEL_NOTCH = 100;
+
+/** Zoom ladder, furthest first. Built from MAX down so the extremes are exact. */
+const ZOOM_LEVELS = (() => {
+    const levels = [];
+    for (let scale = MAX_SCALE; scale >= MIN_SCALE - 1e-9; scale /= ZOOM_STEP) {
+        levels.unshift(Math.round(scale * 10000) / 10000);
+    }
+    return levels;
+})();
 
 const COLOR = {
     unloaded: '#181926',
@@ -43,7 +65,12 @@ const COLOR = {
 
 /** Everything the renderer needs. Mutated in place; never reassigned. */
 const view = {
-    scale: ZOOM_LEVELS[DEFAULT_ZOOM_INDEX],
+    /** Current zoom, animated; only equal to a ladder value once settled. */
+    scale: DEFAULT_SCALE,
+    /** Ladder level the visible tiles belong to. */
+    tileScale: DEFAULT_SCALE,
+    /** Previous level, drawn underneath until the current one has loaded. */
+    prevTileScale: 0,
     cx: 0,
     cz: 0,
     follow: true,
@@ -59,6 +86,18 @@ const view = {
     hover: null,
 };
 
+/** Zoom transition state (geometric interpolation around a fixed world anchor). */
+const zoomAnim = {
+    active: false,
+    from: 1,
+    to: 1,
+    start: 0,
+    anchorWorldX: 0,
+    anchorWorldZ: 0,
+    anchorPx: 0,
+    anchorPy: 0,
+};
+
 /** `scale/tileX/tileZ` → {img, state, at, pending}. */
 const tileCache = new Map();
 
@@ -69,11 +108,10 @@ let resizeObserver = null;
 let pollTimer = null;
 let drawQueued = false;
 let drag = null;
+let wheelDelta = 0;
 let active = false;
 
 // ── Coordinate helpers ──────────────────────────────────────────────
-
-const tileSpan = () => TILE_PX * view.scale;
 
 const screenX = worldX => (worldX - view.cx) / view.scale + view.width / 2;
 const screenY = worldZ => (worldZ - view.cz) / view.scale + view.height / 2;
@@ -82,7 +120,7 @@ const worldZAt = py => (py - view.height / 2) * view.scale + view.cz;
 
 // ── Tiles ───────────────────────────────────────────────────────────
 
-function loadTileImage(tx, tz, entry) {
+function loadTileImage(tx, tz, scale, entry) {
     if (entry.pending) return;
     entry.pending = true;
     const img = new Image();
@@ -96,28 +134,29 @@ function loadTileImage(tx, tz, entry) {
         entry.pending = false;
         if (!entry.img) entry.state = 'error';
     };
-    img.src = `${API_BASE}/map/tile?x=${tx}&z=${tz}&s=${view.scale}`;
+    img.src = `${API_BASE}/map/tile?x=${tx}&z=${tz}&s=${scale}`;
 }
 
 /**
- * Returns the tile entry for a coordinate, (re)loading it when it is missing or
- * older than the TTL. The previous image stays on screen while the replacement
- * loads, so panning never flashes blank tiles.
+ * Returns the tile entry for a coordinate at a zoom level, (re)loading it when
+ * missing or stale. `fetch` is false for the fallback layer, which only draws
+ * whatever happens to be cached.
+ *
+ * <p>The previous image stays on screen while a replacement loads, so panning
+ * and refresh never flash blank tiles.
  */
-function getTile(tx, tz) {
-    const key = `${view.scale}/${tx}/${tz}`;
+function getTile(tx, tz, scale, fetchTile) {
+    const key = `${scale}/${tx}/${tz}`;
     const now = Date.now();
     let entry = tileCache.get(key);
     if (!entry) {
-        entry = {img: null, state: 'loading', at: now, pending: false};
+        entry = {img: null, state: 'idle', at: now, pending: false};
         tileCache.set(key, entry);
         trimTileCache();
-        loadTileImage(tx, tz, entry);
-        return entry;
     }
-    if (now - entry.at > TILE_TTL_MS) {
+    if (fetchTile && !entry.pending && (entry.state !== 'ready' || now - entry.at > TILE_TTL_MS)) {
         entry.at = now;
-        loadTileImage(tx, tz, entry);
+        loadTileImage(tx, tz, scale, entry);
     }
     return entry;
 }
@@ -145,6 +184,7 @@ export function requestDraw() {
     requestAnimationFrame(() => {
         drawQueued = false;
         draw();
+        if (zoomAnim.active) requestDraw();
     });
 }
 
@@ -173,6 +213,8 @@ function syncCanvasSize() {
 
 function draw() {
     if (!syncCanvasSize()) return;
+    if (zoomAnim.active) stepZoom();
+
     ctx.imageSmoothingEnabled = false;
     // One flat "no data" tone behind everything: painting per-tile rectangles
     // instead leaves the uncovered strip on the right/bottom a different shade,
@@ -180,7 +222,24 @@ function draw() {
     ctx.fillStyle = COLOR.unloaded;
     ctx.fillRect(0, 0, view.width, view.height);
 
-    const span = tileSpan();
+    // While a zoom settles, the old level is stretched underneath so the screen
+    // is never empty; once the new level loads it covers the fallback completely.
+    if (view.prevTileScale && view.prevTileScale !== view.tileScale) {
+        drawTileLayer(view.prevTileScale, false);
+    }
+    drawTileLayer(view.tileScale, true);
+
+    drawGrid();
+    drawPath();
+    drawMarkers();
+}
+
+function drawTileLayer(scale, fetchTiles) {
+    const span = TILE_PX * scale;
+    const size = span / view.scale;
+    // Snapped drawing only when this layer is shown 1:1 — fractional sizes would
+    // otherwise blur the pixel-art tiles.
+    const crisp = Math.abs(size - TILE_PX) < 0.25;
     const halfWBlocks = (view.width / 2) * view.scale;
     const halfHBlocks = (view.height / 2) * view.scale;
     const firstX = Math.floor((view.cx - halfWBlocks) / span);
@@ -189,19 +248,16 @@ function draw() {
     const lastZ = Math.floor((view.cz + halfHBlocks) / span);
 
     for (let tx = firstX; tx <= lastX; tx++) {
+        const left = screenX(tx * span);
+        const drawLeft = crisp ? Math.round(left) : left;
         for (let tz = firstZ; tz <= lastZ; tz++) {
-            const left = Math.round(screenX(tx * span));
-            const top = Math.round(screenY(tz * span));
-            const entry = getTile(tx, tz);
-            if (entry.state === 'ready' && entry.img) {
-                ctx.drawImage(entry.img, left, top, TILE_PX, TILE_PX);
-            }
+            const entry = getTile(tx, tz, scale, fetchTiles);
+            if (entry.state !== 'ready' || !entry.img) continue;
+            const top = crisp ? Math.round(screenY(tz * span)) : screenY(tz * span);
+            const drawSize = crisp ? TILE_PX : size;
+            ctx.drawImage(entry.img, drawLeft, top, drawSize, drawSize);
         }
     }
-
-    drawGrid();
-    drawPath();
-    drawMarkers();
 }
 
 /** Coordinate grid + edge labels, so positions can be read off the map directly. */
@@ -326,6 +382,81 @@ function drawMarkers() {
     }
 }
 
+// ── Zoom ────────────────────────────────────────────────────────────
+
+/** Index of the ladder rung closest to `scale` (log distance, so it feels even). */
+function nearestLevelIndex(scale) {
+    let best = 0;
+    let bestDistance = Infinity;
+    for (let i = 0; i < ZOOM_LEVELS.length; i++) {
+        const distance = Math.abs(Math.log(scale / ZOOM_LEVELS[i]));
+        if (distance < bestDistance) {
+            bestDistance = distance;
+            best = i;
+        }
+    }
+    return best;
+}
+
+/**
+ * Moves `steps` rungs along the ladder: positive = further out, negative =
+ * closer in. The world point under the anchor stays under the anchor for the
+ * whole transition.
+ */
+function zoomStep(steps, anchorPx, anchorPy) {
+    if (!steps) return;
+    const reference = zoomAnim.active ? zoomAnim.to : view.scale;
+    const index = Math.min(ZOOM_LEVELS.length - 1,
+        Math.max(0, nearestLevelIndex(reference) + steps));
+    const target = ZOOM_LEVELS[index];
+    if (Math.abs(target - reference) < 1e-9) return;
+    zoomTo(target, anchorPx, anchorPy);
+}
+
+function zoomTo(targetScale, anchorPx, anchorPy) {
+    const px = Number.isFinite(anchorPx) ? anchorPx : view.width / 2;
+    const py = Number.isFinite(anchorPy) ? anchorPy : view.height / 2;
+    zoomAnim.from = view.scale;
+    zoomAnim.to = targetScale;
+    zoomAnim.anchorWorldX = worldXAt(px);
+    zoomAnim.anchorWorldZ = worldZAt(py);
+    zoomAnim.anchorPx = px;
+    zoomAnim.anchorPy = py;
+    zoomAnim.start = performance.now();
+    zoomAnim.active = true;
+    requestDraw();
+}
+
+/** Geometric interpolation — equal ratios per unit time, which reads as smooth. */
+function stepZoom() {
+    const elapsed = (performance.now() - zoomAnim.start) / ZOOM_DURATION_MS;
+    const t = Math.min(1, Math.max(0, elapsed));
+    const eased = 1 - Math.pow(1 - t, 3);
+    view.scale = zoomAnim.from * Math.pow(zoomAnim.to / zoomAnim.from, eased);
+    // Pin the anchored block: the centre has to move as the scale changes.
+    view.cx = zoomAnim.anchorWorldX - (zoomAnim.anchorPx - view.width / 2) * view.scale;
+    view.cz = zoomAnim.anchorWorldZ - (zoomAnim.anchorPy - view.height / 2) * view.scale;
+    if (t < 1) return;
+
+    view.scale = zoomAnim.to;
+    zoomAnim.active = false;
+    if (view.tileScale !== zoomAnim.to) {
+        view.prevTileScale = view.tileScale;
+        view.tileScale = zoomAnim.to;
+    }
+}
+
+/** Jumps to the end of a running transition (used before re-centring). */
+function finishZoom() {
+    if (!zoomAnim.active) return;
+    zoomAnim.active = false;
+    view.scale = zoomAnim.to;
+    if (view.tileScale !== zoomAnim.to) {
+        view.prevTileScale = view.tileScale;
+        view.tileScale = zoomAnim.to;
+    }
+}
+
 // ── Layout ──────────────────────────────────────────────────────────
 
 /** Called by the ResizeObserver — the size itself is re-read on every draw. */
@@ -378,22 +509,20 @@ function onPointerLeave() {
     requestDraw();
 }
 
+/**
+ * Wheel accumulates before moving a rung, so a trackpad flick or a fast mouse
+ * wheel zooms a sensible amount instead of jumping several levels at once.
+ */
 function onWheel(event) {
     event.preventDefault();
+    const unit = event.deltaMode === 1 ? 33 : event.deltaMode === 2 ? 300 : 1;
+    wheelDelta += event.deltaY * unit;
+    const steps = Math.trunc(wheelDelta / WHEEL_NOTCH);
+    if (!steps) return;
+    wheelDelta -= steps * WHEEL_NOTCH;
     const {px, py} = pointerPos(event);
-    const anchorX = worldXAt(px);
-    const anchorZ = worldZAt(py);
-    const index = ZOOM_LEVELS.indexOf(view.scale);
-    const next = event.deltaY < 0
-        ? Math.max(0, index - 1)
-        : Math.min(ZOOM_LEVELS.length - 1, index + 1);
-    if (next === index) return;
-    view.scale = ZOOM_LEVELS[next];
-    // Keep the block under the cursor pinned while zooming.
-    view.cx = anchorX - (px - view.width / 2) * view.scale;
-    view.cz = anchorZ - (py - view.height / 2) * view.scale;
     view.follow = false;
-    requestDraw();
+    zoomStep(steps, px, py);
 }
 
 async function goTo(x, z) {
@@ -434,7 +563,7 @@ function setText(id, value) {
 function updateHoverLabel() {
     const el = document.getElementById('mapHover');
     if (!el) return;
-    el.textContent = view.hover ? `X ${view.hover.x}  Z ${view.hover.z}` : '';
+    el.textContent = view.hover ? `X ${view.hover.x}  Z ${view.hover.z}  ×${(1 / view.scale).toFixed(1)}` : '';
 }
 
 function updatePanel() {
@@ -486,23 +615,18 @@ async function poll() {
 // ── Public API (also exposed on window for inline handlers) ─────────
 
 export function mapZoomIn() {
-    // `scale` is blocks per pixel: a LOWER value means closer, so zooming in
-    // walks the level list backwards.
-    setZoom(ZOOM_LEVELS[Math.max(0, ZOOM_LEVELS.indexOf(view.scale) - 1)]);
+    // Lower scale = closer. The anchor stays the view centre so the bot does not
+    // slide off screen while zooming from the buttons.
+    zoomStep(-1);
 }
 
 export function mapZoomOut() {
-    setZoom(ZOOM_LEVELS[Math.min(ZOOM_LEVELS.length - 1, ZOOM_LEVELS.indexOf(view.scale) + 1)]);
-}
-
-function setZoom(scale) {
-    if (scale === view.scale) return;
-    view.scale = scale;
-    requestDraw();
+    zoomStep(1);
 }
 
 /** Re-centres on the bot and resumes following it. */
 export function mapRecenter() {
+    finishZoom();
     view.follow = true;
     if (view.player) {
         view.cx = view.player.x;
@@ -514,7 +638,7 @@ export function mapRecenter() {
 /** Forces a re-render of every visible tile (also drops the browser's copies). */
 export function mapRefresh() {
     for (const [key, entry] of tileCache) {
-        if (key.startsWith(`${view.scale}/`)) entry.at = 0;
+        if (key.startsWith(`${view.tileScale}/`)) entry.at = 0;
     }
     requestDraw();
     poll();

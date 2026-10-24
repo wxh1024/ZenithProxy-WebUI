@@ -52,6 +52,13 @@ public class MapHandler {
     private static final int MAX_COORD = 30_000_000;
     /** Upper bound on path vertices sent to the browser; longer paths are sampled. */
     private static final int MAX_PATH_POINTS = 600;
+    /**
+     * Zoom range in blocks per pixel. The browser zooms in 1.25× rungs across
+     * this range, so the value is continuous rather than a fixed list — only the
+     * extremes are enforced here.
+     */
+    private static final double MIN_SCALE = 0.1;
+    private static final double MAX_SCALE = 8.0;
 
     private final MapTileRenderer renderer = new MapTileRenderer();
     /** The path request issued from this page; {@code null} until the first click. */
@@ -87,7 +94,7 @@ public class MapHandler {
             HttpHelper.sendError(ctx, HttpResponseStatus.BAD_REQUEST, "Missing x/z");
             return;
         }
-        final double resolvedScale = scale == null ? 1.0 : scale;
+        final double resolvedScale = normalizeScale(scale == null ? 1.0 : scale);
         if (!isSupportedScale(resolvedScale)) {
             HttpHelper.sendError(ctx, HttpResponseStatus.BAD_REQUEST, "Unsupported scale");
             return;
@@ -365,8 +372,13 @@ public class MapHandler {
         }
     }
 
-    /** Kept in sync with {@code ZOOM_LEVELS} in js/map.js. */
+    /** Kept in sync with MIN_SCALE / ZOOM_LEVELS in js/map.js. */
     private static boolean isSupportedScale(final double scale) {
-        return scale == 0.5 || scale == 1.0 || scale == 2.0 || scale == 4.0 || scale == 8.0;
+        return scale >= MIN_SCALE - 1e-9 && scale <= MAX_SCALE + 1e-9;
+    }
+
+    /** Rounds the zoom to 4 decimals so cache keys never split on float noise. */
+    private static double normalizeScale(final double scale) {
+        return Math.round(scale * 10000.0) / 10000.0;
     }
 }

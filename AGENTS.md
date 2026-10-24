@@ -130,8 +130,10 @@ plugins/webui/
   shows up on the map too. Baritone plans one segment at a time, hence the dashed line from segment end to target.
 - **Map state is 1 Hz polling, not SSE**: `/api/map/state` is polled only while the page is visible
   (`activateMap` / `stopMap`), mirroring how the dashboard stream is closed on navigation away.
-- **`ZOOM_LEVELS` is duplicated**: `js/map.js` and `MapHandler.isSupportedScale()` must agree on the
-  blocks-per-pixel values (0.5 / 1 / 2 / 4 / 8); the server answers `400` for anything else.
+- **Zoom is a 1.25× ladder over 0.1–8 blocks per pixel**: `js/map.js` builds `ZOOM_LEVELS` from
+  `MAX_SCALE` downward, and `MapHandler.isSupportedScale()` only enforces the range (the value is
+  continuous during the animation). Tiles are fetched for the settled level only; the previous level
+  is stretched underneath during the 190 ms transition so no frame is left with a hole.
 - **Thread safety**: `WebUIPlugin.instance` is `volatile`. Logback appender uses a local snapshot to avoid TOCTOU after
   `stop()`. SSE client lists use `CopyOnWriteArrayList`. Log buffer uses `ConcurrentLinkedDeque<LogEntry>` plus an
   approximate size counter.
