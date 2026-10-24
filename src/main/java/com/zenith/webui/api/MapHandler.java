@@ -2,6 +2,7 @@ package com.zenith.webui.api;
 
 import com.google.gson.JsonObject;
 import com.zenith.Proxy;
+import com.zenith.cache.data.chunk.Chunk;
 import com.zenith.feature.pathfinder.PathingRequestFuture;
 import com.zenith.feature.pathfinder.behavior.PathingBehavior;
 import com.zenith.feature.pathfinder.calc.IPath;
@@ -124,6 +125,9 @@ public class MapHandler {
         payload.put("progress", path.progress());
         payload.put("remaining", path.remaining());
         payload.put("target", current == null ? null : Map.of("x", current.x, "z", current.z));
+        // Bounds of the loaded chunks: the page only asks for tiles inside them,
+        // so a zoomed-out view does not request a dozen empty tiles.
+        payload.put("view", loadedArea());
         // Explicit nulls matter: the browser clears its markers when these are null.
         HttpHelper.sendJson(ctx, payload, HttpHelper.GSON_NULLS);
     }
@@ -238,6 +242,41 @@ public class MapHandler {
         final double dx = a[0] - b[0];
         final double dz = a[2] - b[2];
         return Math.sqrt(dx * dx + dz * dz);
+    }
+
+    /**
+     * Block bounds of every chunk the proxy currently holds.
+     *
+     * <p>Derived from the cache keys rather than "centre ± view distance": the
+     * server does not necessarily send a full square, and an honest box means
+     * the browser never requests a tile that cannot contain any terrain.
+     */
+    private Map<String, Object> loadedArea() {
+        try {
+            final var chunkCache = CACHE.getChunkCache();
+            final var chunks = chunkCache.getCache();
+            if (chunks == null || chunks.isEmpty()) return null;
+            int minChunkX = Integer.MAX_VALUE;
+            int minChunkZ = Integer.MAX_VALUE;
+            int maxChunkX = Integer.MIN_VALUE;
+            int maxChunkZ = Integer.MIN_VALUE;
+            for (final long key : chunks.keySet().toLongArray()) {
+                final int chunkX = Chunk.longToChunkX(key);
+                final int chunkZ = Chunk.longToChunkZ(key);
+                if (chunkX < minChunkX) minChunkX = chunkX;
+                if (chunkX > maxChunkX) maxChunkX = chunkX;
+                if (chunkZ < minChunkZ) minChunkZ = chunkZ;
+                if (chunkZ > maxChunkZ) maxChunkZ = chunkZ;
+            }
+            final Map<String, Object> area = new LinkedHashMap<>();
+            area.put("minX", minChunkX << 4);
+            area.put("minZ", minChunkZ << 4);
+            area.put("maxX", (maxChunkX << 4) + 16);
+            area.put("maxZ", (maxChunkZ << 4) + 16);
+            return area;
+        } catch (final Exception e) {
+            return null;
+        }
     }
 
     private Map<String, Object> playerSnapshot() {

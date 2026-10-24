@@ -7,7 +7,9 @@
  * chunks stay blank instead of showing someone else's snapshot of the world.
  *
  * Bot position, the path Baritone is currently following and the pathing status
- * arrive from `/api/map/state` (1 Hz poll while the page is visible). Clicking
+ * arrive from `/api/map/state` (2 Hz while the page is visible) and the marker is
+ * tweened between samples, so movement reads as motion instead of a 1 px jump
+ * every second. Clicking
  * the canvas POSTs `/api/map/path`, which drives ZenithProxy's own pathfinder —
  * the browser never computes a route, it only draws what the server reports.
  *
@@ -40,7 +42,7 @@ const GRID_STEPS = [8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096];
 const MAX_CACHED_TILES = 150;
 /** Absolute ceiling — reached only if nothing can be dropped without a hole. */
 const HARD_CACHED_TILES = 320;
-const POLL_MS = 1000;
+const POLL_MS = 500;
 /** Wheel pixels that add up to one notch. */
 const WHEEL_NOTCH = 100;
 
@@ -86,7 +88,35 @@ const view = {
     status: 'idle',
     connected: false,
     hover: null,
+    /** Block bounds of the chunks the proxy currently has loaded, or null. */
+    loaded: null,
 };
+
+/** Marker tween between two polls (dead reckoning over the sample interval). */
+const motion = {
+    active: false,
+    x: 0,
+    z: 0,
+    fromX: 0,
+    fromZ: 0,
+    toX: 0,
+    toZ: 0,
+    start: 0,
+    duration: POLL_MS,
+};
+
+const markerX = () => (motion.active ? motion.x : view.player ? view.player.x : 0);
+const markerZ = () => (motion.active ? motion.z : view.player ? view.player.z : 0);
+
+/** Advances the marker tween; returns true while it is still running. */
+function stepMotion(now) {
+    if (!motion.active) return false;
+    const t = Math.min(1, (now - motion.start) / Math.max(1, motion.duration));
+    motion.x = motion.fromX + (motion.toX - motion.fromX) * t;
+    motion.z = motion.fromZ + (motion.toZ - motion.fromZ) * t;
+    if (t >= 1) motion.active = false;
+    return motion.active;
+}
 
 /** Zoom transition state (geometric interpolation around a fixed world anchor). */
 const zoomAnim = {
@@ -258,7 +288,7 @@ export function requestDraw() {
     requestAnimationFrame(() => {
         drawQueued = false;
         draw();
-        if (zoomAnim.active) requestDraw();
+        if (zoomAnim.active || motion.active) requestDraw();
     });
 }
 
@@ -287,7 +317,15 @@ function syncCanvasSize() {
 
 function draw() {
     if (!syncCanvasSize()) return;
+    const now = performance.now();
     if (zoomAnim.active) stepZoom();
+    stepMotion(now);
+    // Following the interpolated position (not the raw sample) is what makes
+    // the whole view pan smoothly instead of jumping twice a second.
+    if (view.follow && !zoomAnim.active && view.player) {
+        view.cx = markerX();
+        view.cz = markerZ();
+    }
 
     ctx.imageSmoothingEnabled = false;
     // One flat "no data" tone behind everything: painting per-tile rectangles
@@ -308,6 +346,16 @@ function draw() {
     drawMarkers();
 }
 
+/** True when a tile overlaps the chunks the proxy currently has loaded. */
+function tileIsLoaded(tx, tz, span) {
+    const loaded = view.loaded;
+    if (!loaded) return true;
+    const minX = tx * span;
+    const minZ = tz * span;
+    return minX + span > loaded.minX && minX < loaded.maxX
+        && minZ + span > loaded.minZ && minZ < loaded.maxZ;
+}
+
 function drawTileLayer(scale, fetchTiles) {
     const span = TILE_PX * scale;
     const size = span / view.scale;
@@ -326,6 +374,9 @@ function drawTileLayer(scale, fetchTiles) {
         const left = screenX(tx * span);
         const drawLeft = crisp ? Math.round(left) : left;
         for (let tz = firstZ; tz <= lastZ; tz++) {
+            // Nothing outside the proxy's loaded chunks is drawn or even
+            // requested — that area would come back empty anyway.
+            if (!tileIsLoaded(tx, tz, span)) continue;
             const entry = getTile(tx, tz, scale, fetchTiles);
             entry.touched = now;
             if (entry.state !== 'ready' || !entry.img) continue;
@@ -403,7 +454,7 @@ function drawDashedToTarget(lastPoint) {
     const start = lastPoint
         ? {x: screenX(lastPoint[0]), y: screenY(lastPoint[2])}
         : view.player
-            ? {x: screenX(view.player.x), y: screenY(view.player.z)}
+            ? {x: screenX(markerX()), y: screenY(markerZ())}
             : null;
     if (!start) return;
     const end = {x: screenX(view.target.x), y: screenY(view.target.z)};
@@ -437,8 +488,8 @@ function drawMarkers() {
         ctx.stroke();
     }
     if (view.player) {
-        const x = Math.round(screenX(view.player.x));
-        const y = Math.round(screenY(view.player.z));
+        const x = Math.round(screenX(markerX()));
+        const y = Math.round(screenY(markerZ()));
         // Facing indicator first, so the marker box sits on top of its base.
         const yaw = (view.player.yaw || 0) * Math.PI / 180;
         ctx.strokeStyle = COLOR.bot;
@@ -680,15 +731,26 @@ async function poll() {
     const data = await apiCall('/map/state');
     if (!data || !active) return;
     view.connected = !!data.connected;
+    const previous = view.player
+        ? {x: motion.active ? motion.x : view.player.x, z: motion.active ? motion.z : view.player.z}
+        : null;
     view.player = data.player || null;
     view.path = Array.isArray(data.path) ? data.path : [];
     view.progress = data.progress || 0;
     view.remaining = data.remaining || 0;
     view.status = data.status || 'idle';
     view.target = data.target || null;
-    if (view.follow && view.player) {
-        view.cx = view.player.x;
-        view.cz = view.player.z;
+    view.loaded = data.view || null;
+    if (view.player && previous) {
+        motion.fromX = previous.x;
+        motion.fromZ = previous.z;
+        motion.toX = view.player.x;
+        motion.toZ = view.player.z;
+        motion.x = previous.x;
+        motion.z = previous.z;
+        motion.start = performance.now();
+        motion.duration = POLL_MS;
+        motion.active = true;
     }
     updatePanel();
     requestDraw();
