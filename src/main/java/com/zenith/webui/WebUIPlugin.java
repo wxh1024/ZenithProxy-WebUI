@@ -94,6 +94,7 @@ public class WebUIPlugin implements ZenithProxyPlugin {
     private AuthHandler authHandler;
     private AuthController authController;
     private DashboardHandler dashboardHandler;
+    private MapHandler mapHandler;
     private WebUIServer server;
     private WebUILogHandler logHandler;
 
@@ -175,6 +176,7 @@ public class WebUIPlugin implements ZenithProxyPlugin {
 
         // Handlers
         dashboardHandler = new DashboardHandler();
+        mapHandler = new MapHandler(pluginDir);
         WebUIChannelHandler channelHandler = new WebUIChannelHandler(
                 authHandler, authController,
                 new CommandHandler(),
@@ -184,7 +186,7 @@ public class WebUIPlugin implements ZenithProxyPlugin {
                 new FeatureHandler(),
                 new BasicConfigHandler(),
                 new I18nHandler(configManager.getConfig()),
-                new MapHandler(),
+                mapHandler,
                 new StaticFileHandler(pluginDir));
 
         // Server
@@ -224,6 +226,7 @@ public class WebUIPlugin implements ZenithProxyPlugin {
         registerLogAppender();
         subscribeEvents();
         dashboardHandler.startStream();
+        mapHandler.start();
         return true;
     }
 
@@ -233,6 +236,7 @@ public class WebUIPlugin implements ZenithProxyPlugin {
     public void stop() {
         EVENT_BUS.unsubscribe(this);
         if (dashboardHandler != null) dashboardHandler.stopStream();
+        if (mapHandler != null) mapHandler.stop();
         detachLogAppender();
         if (server != null) server.stop();
         // The auth manager outlives stop()/start(): it owns the token store, and

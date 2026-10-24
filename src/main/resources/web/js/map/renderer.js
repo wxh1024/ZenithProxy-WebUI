@@ -53,8 +53,13 @@ function drawTiles(ctx, camera, store, now) {
 
     for (let x = range.firstX; x <= range.lastX; x++) {
         for (let y = range.firstY; y <= range.lastY; y++) {
-            const fetch = canFetch && store.isRefreshable(level, x, y);
-            const entry = store.get(level, x, y, fetch);
+            // First fetch is allowed anywhere — the server persists terrain the
+            // bot has seen, so ground outside the view distance still arrives.
+            // TTL refresh happens only inside the live area, where blocks change.
+            const inside = store.isRefreshable(level, x, y);
+            const load = canFetch;
+            const refresh = canFetch && inside && store.hasLoadedArea();
+            const entry = store.get(level, x, y, load, refresh);
             if (entry && entry.state === 'ready' && entry.img) ready.push(entry);
             else missing.push({x, y});
         }

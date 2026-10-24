@@ -42,6 +42,11 @@ export class TileStore {
         this.loaded = area;
     }
 
+    /** True once the server has reported the loaded area (not offline/unknown). */
+    hasLoadedArea() {
+        return this.loaded != null;
+    }
+
     /** True when a tile overlaps the chunks the proxy currently has loaded. */
     isRefreshable(level, x, y) {
         const area = this.loaded;
@@ -54,15 +59,19 @@ export class TileStore {
     }
 
     /**
-     * Entry for a tile. `wantFetch` allows a load/refresh; without it only
-     * already-cached tiles are returned (`null` when nothing is known yet).
+     * Entry for a tile.
+     *
+     * <p>{@code load} allows the first fetch (anywhere — persisted terrain from
+     * outside the view distance is pulled once), {@code refresh} allows a TTL
+     * re-fetch (only inside the live area, where the world changes). Without
+     * {@code load}, only already-cached tiles are returned.
      */
-    get(level, x, y, wantFetch) {
+    get(level, x, y, load, refresh) {
         const key = TileStore.key(level, x, y);
         const now = Date.now();
         let entry = this.entries.get(key);
         if (!entry) {
-            if (!wantFetch) return null;
+            if (!load) return null;
             entry = {
                 key, level, x, y,
                 img: null,
@@ -76,8 +85,10 @@ export class TileStore {
             this.entries.set(key, entry);
             this.levelCounts.set(level, (this.levelCounts.get(level) || 0) + 1);
         }
-        const stale = entry.state !== 'ready' || now - entry.loadedAt > this.ttlMs;
-        if (wantFetch && stale && !entry.pending && now >= entry.retryAt) {
+        if (entry.pending || now < entry.retryAt) return entry;
+        if (entry.state !== 'ready' && load) {
+            this.#load(entry);
+        } else if (entry.state === 'ready' && refresh && now - entry.loadedAt > this.ttlMs) {
             this.#load(entry);
         }
         return entry;

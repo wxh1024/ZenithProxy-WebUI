@@ -61,9 +61,53 @@ public class MapHandler {
     private static final int MIN_ZOOM = -4;
     private static final int MAX_ZOOM = 6;
 
-    private final MapTileRenderer renderer = new MapTileRenderer();
+    private final MapTileRenderer renderer;
     /** The path request issued from this page; {@code null} until the first click. */
     private volatile Session session;
+    /** Background trail recorder that persists tiles as the bot walks. */
+    private java.util.concurrent.ScheduledExecutorService recorder;
+
+    public MapHandler(final java.nio.file.Path pluginDir) {
+        // `plugins/webui/mapcache` — persisted tiles for ground the bot has seen.
+        this.renderer = new MapTileRenderer(pluginDir.resolve("mapcache"));
+    }
+
+    /**
+     * Starts the trail recorder: every 2 s it persists the tile under the bot at
+     * levels 0–2, so the walked trail is captured even when no browser is open.
+     */
+    public void start() {
+        if (recorder != null) return;
+        recorder = java.util.concurrent.Executors.newSingleThreadScheduledExecutor(r -> {
+            final Thread t = new Thread(r, "webui-map-recorder");
+            t.setDaemon(true);
+            return t;
+        });
+        recorder.scheduleAtFixedRate(this::recordTrail, 3, 2, java.util.concurrent.TimeUnit.SECONDS);
+    }
+
+    public void stop() {
+        if (recorder != null) {
+            recorder.shutdownNow();
+            recorder = null;
+        }
+    }
+
+    private void recordTrail() {
+        try {
+            if (!isConnected()) return;
+            final var playerCache = CACHE.getPlayerCache();
+            if (playerCache.getThePlayer() == null) return;
+            final int x = (int) Math.floor(playerCache.getX());
+            final int z = (int) Math.floor(playerCache.getZ());
+            for (int level = 0; level <= 2; level++) {
+                final int span = MapTileRenderer.TILE_PX << level;
+                renderer.record(level, Math.floorDiv(x, span), Math.floorDiv(z, span));
+            }
+        } catch (final Exception ignored) {
+            // A torn read while the player moves is harmless; the next tick retries.
+        }
+    }
 
     /** Path request tracked for status reporting (separate from any other module's pathing). */
     private static final class Session {
@@ -107,7 +151,7 @@ public class MapHandler {
             HttpHelper.sendError(ctx, HttpResponseStatus.BAD_REQUEST, "Tile out of range");
             return;
         }
-        final byte[] png = renderer.tile(tileX, tileY, scale);
+        final byte[] png = renderer.tile(zoom, tileX, tileY);
         HttpHelper.sendBytes(ctx, png, "image/png", "no-store");
     }
 

@@ -130,6 +130,11 @@ plugins/webui/
   renderer always paints the *best available* resolution per cell — if the active zoom level has no tile
   for a cell it draws a cached tile from another level, scaled — which is why zooming never blanks ground
   the bot has already explored.
+- **Terrain persists beyond the view distance**: `MapTileRenderer` writes every tile that has content to
+  `plugins/webui/mapcache/<level>/<x>/<y>.png` (10 000-file cap, oldest-first pruning) and falls back to that
+  copy when the live chunks are gone. `MapHandler` runs a daemon "trail recorder" (every 2 s, levels 0–2 under
+  the bot) so the walked path is captured even with no browser open. The browser requests outside-area tiles
+  once (no TTL refresh) and reuses them from its own cache.
 - **Map tiles come from the live chunk cache, not a tile server**: `MapTileRenderer` scans each column top-down
   (ZenithProxy deliberately does not keep height maps — they go stale on block updates) and skips sections whose
   `isBlockCountEmpty()` is true. Unloaded chunks stay transparent so the page shows the real extent of what the bot
