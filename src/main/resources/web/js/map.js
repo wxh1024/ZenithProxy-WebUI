@@ -444,6 +444,9 @@ function stepZoom() {
         view.prevTileScale = view.tileScale;
         view.tileScale = zoomAnim.to;
     }
+    // The cursor may not move while the buttons are used, so refresh the
+    // magnification readout once the level settles.
+    if (view.hover) updateHoverLabel();
 }
 
 /** Jumps to the end of a running transition (used before re-centring). */
