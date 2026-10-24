@@ -37,7 +37,9 @@ const ZOOM_DURATION_MS = 190;
 const DEFAULT_SCALE = 1;
 /** Grid line spacing candidates, in blocks. */
 const GRID_STEPS = [8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096];
-const MAX_CACHED_TILES = 200;
+const MAX_CACHED_TILES = 150;
+/** Absolute ceiling — reached only if nothing can be dropped without a hole. */
+const HARD_CACHED_TILES = 320;
 const POLL_MS = 1000;
 /** Wheel pixels that add up to one notch. */
 const WHEEL_NOTCH = 100;
@@ -150,7 +152,7 @@ function getTile(tx, tz, scale, fetchTile) {
     const now = Date.now();
     let entry = tileCache.get(key);
     if (!entry) {
-        entry = {img: null, state: 'idle', at: now, touched: now, pending: false};
+        entry = {img: null, state: 'idle', at: now, touched: now, pending: false, level: scale, tx, tz};
         tileCache.set(key, entry);
         trimTileCache();
     }
@@ -162,29 +164,83 @@ function getTile(tx, tz, scale, fetchTile) {
 }
 
 /**
- * Drops cached tiles once the budget is exceeded, least-recently-drawn first.
+ * Evicts cached tiles, but never at the cost of a hole on screen.
  *
- * <p>Evicting purely by insertion order deleted tiles belonging to the level
- * being displayed — they were fetched before the newest ones — so a zoom could
- * re-request a tile it was drawing, which shows up as a flash of background.
- * Levels currently on screen are never evicted.
+ * <p>Two guarantees:
+ * <ol>
+ *   <li>a level that is currently drawn (the settled level and the fallback
+ *       level under a running transition) is never evicted;</li>
+ *   <li>an older tile is only dropped once the active level already has a
+ *       <em>loaded</em> tile covering the same ground. If the new level still
+ *       has gaps, the old tile stays — a missing tile would flash background.</li>
+ * </ol>
+ *
+ * <p>Least-recently-drawn goes first. The list can therefore stay above the
+ * soft budget (nothing is safely droppable yet); the hard ceiling is a memory
+ * guard only, since every decoded tile costs ~256 KB.
  */
 function trimTileCache() {
-    if (tileCache.size <= MAX_CACHED_TILES) return;
-    const activeLevels = new Set([String(view.tileScale), String(view.prevTileScale)]);
+    const over = tileCache.size - MAX_CACHED_TILES;
+    if (over <= 0) return;
+    const kept = new Set([String(view.tileScale), String(view.prevTileScale)]);
     const candidates = [];
     for (const [key, entry] of tileCache) {
-        const level = key.slice(0, key.indexOf('/'));
-        if (activeLevels.has(level)) continue;
-        candidates.push([key, entry.touched || 0]);
+        if (kept.has(String(entry.level))) continue;
+        candidates.push({key, entry});
     }
-    candidates.sort((a, b) => a[1] - b[1]);
-    let excess = tileCache.size - MAX_CACHED_TILES;
-    for (const [key] of candidates) {
-        if (excess <= 0) break;
-        tileCache.delete(key);
-        excess--;
+    candidates.sort((a, b) => (a.entry.touched || 0) - (b.entry.touched || 0));
+
+    let remaining = over;
+    const blocked = [];
+    for (const candidate of candidates) {
+        if (remaining <= 0) break;
+        if (!hasReplacement(candidate.entry)) {
+            blocked.push(candidate);
+            continue;
+        }
+        tileCache.delete(candidate.key);
+        remaining--;
     }
+    if (tileCache.size <= HARD_CACHED_TILES) return;
+    for (const candidate of blocked) {
+        if (tileCache.size <= HARD_CACHED_TILES) break;
+        tileCache.delete(candidate.key);
+    }
+}
+
+/** True when the active level has a loaded tile for every block of `entry`. */
+function hasReplacement(entry) {
+    const span = TILE_PX * entry.level;
+    const activeSpan = TILE_PX * view.tileScale;
+    const firstX = Math.floor(entry.tx * span / activeSpan);
+    const lastX = Math.floor(((entry.tx + 1) * span) / activeSpan - 1e-9);
+    const firstZ = Math.floor(entry.tz * span / activeSpan);
+    const lastZ = Math.floor(((entry.tz + 1) * span) / activeSpan - 1e-9);
+    for (let tx = firstX; tx <= lastX; tx++) {
+        for (let tz = firstZ; tz <= lastZ; tz++) {
+            const replacement = tileCache.get(`${view.tileScale}/${tx}/${tz}`);
+            if (!replacement || replacement.state !== 'ready') return false;
+        }
+    }
+    return true;
+}
+
+/** True when every visible tile of the active level is loaded. */
+function activeLevelReady() {
+    const span = TILE_PX * view.tileScale;
+    const halfW = (view.width / 2) * view.scale;
+    const halfH = (view.height / 2) * view.scale;
+    const firstX = Math.floor((view.cx - halfW) / span);
+    const lastX = Math.floor((view.cx + halfW) / span);
+    const firstZ = Math.floor((view.cz - halfH) / span);
+    const lastZ = Math.floor((view.cz + halfH) / span);
+    for (let tx = firstX; tx <= lastX; tx++) {
+        for (let tz = firstZ; tz <= lastZ; tz++) {
+            const entry = tileCache.get(`${view.tileScale}/${tx}/${tz}`);
+            if (!entry || entry.state !== 'ready') return false;
+        }
+    }
+    return true;
 }
 
 // ── Rendering ───────────────────────────────────────────────────────
@@ -464,6 +520,9 @@ function stepZoom() {
         view.prevTileScale = view.tileScale;
         view.tileScale = zoomAnim.to;
     }
+    // The fallback level is only insurance while the new level is still
+    // loading; drop it as soon as the viewport is fully covered.
+    if (view.prevTileScale && activeLevelReady()) view.prevTileScale = 0;
     // The cursor may not move while the buttons are used, so refresh the
     // magnification readout once the level settles.
     if (view.hover) updateHoverLabel();
