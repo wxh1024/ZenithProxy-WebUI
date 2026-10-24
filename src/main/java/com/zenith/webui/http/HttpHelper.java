@@ -71,6 +71,23 @@ public final class HttpHelper {
         writeBody(ctx, HttpResponseStatus.OK, content, contentType);
     }
 
+    /**
+     * Binary payload with an explicit {@code Cache-Control} value. Map tiles are
+     * rendered on demand from live world data, so they must not be cached by the
+     * browser — the page keeps its own short-lived copy.
+     */
+    public static void sendBytes(ChannelHandlerContext ctx, byte[] content, String contentType,
+                                 String cacheControl) {
+        HttpResponse response = new DefaultHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK);
+        response.headers().set(HttpHeaderNames.CONTENT_TYPE, contentType);
+        response.headers().set(HttpHeaderNames.CONTENT_LENGTH, content.length);
+        response.headers().set(HttpHeaderNames.CACHE_CONTROL, cacheControl);
+        response.headers().set(HttpHeaderNames.ACCESS_CONTROL_ALLOW_ORIGIN, "*");
+        ctx.write(response);
+        ctx.write(new DefaultHttpContent(Unpooled.wrappedBuffer(content)));
+        ctx.writeAndFlush(LastHttpContent.EMPTY_LAST_CONTENT);
+    }
+
     public static void sendNotFound(ChannelHandlerContext ctx) {
         writeBody(ctx, HttpResponseStatus.NOT_FOUND,
                 "404 Not Found".getBytes(StandardCharsets.UTF_8), CONTENT_TYPE_TEXT);

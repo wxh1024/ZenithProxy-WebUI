@@ -32,6 +32,7 @@ public class WebUIChannelHandler extends SimpleChannelInboundHandler<FullHttpReq
     private final FeatureHandler featureHandler;
     private final BasicConfigHandler basicConfigHandler;
     private final I18nHandler i18nHandler;
+    private final MapHandler mapHandler;
     private final StaticFileHandler staticFileHandler;
 
     public WebUIChannelHandler(
@@ -44,6 +45,7 @@ public class WebUIChannelHandler extends SimpleChannelInboundHandler<FullHttpReq
             FeatureHandler featureHandler,
             BasicConfigHandler basicConfigHandler,
             I18nHandler i18nHandler,
+            MapHandler mapHandler,
             StaticFileHandler staticFileHandler) {
         this.authHandler = authHandler;
         this.authController = authController;
@@ -54,6 +56,7 @@ public class WebUIChannelHandler extends SimpleChannelInboundHandler<FullHttpReq
         this.featureHandler = featureHandler;
         this.basicConfigHandler = basicConfigHandler;
         this.i18nHandler = i18nHandler;
+        this.mapHandler = mapHandler;
         this.staticFileHandler = staticFileHandler;
     }
 
@@ -132,6 +135,10 @@ public class WebUIChannelHandler extends SimpleChannelInboundHandler<FullHttpReq
                         basicConfigHandler.sendMethodNotAllowed(ctx);
                     }
                 }
+                case "/api/map/tile" -> mapHandler.handleTile(ctx, req);
+                case "/api/map/state" -> mapHandler.handleState(ctx);
+                case "/api/map/path" -> mapHandler.handlePath(ctx, req);
+                case "/api/map/stop" -> mapHandler.handleStop(ctx, req);
                 default -> {
                     if (path.startsWith("/api/")) {
                         // Unknown API route: returning index.html would look like a success

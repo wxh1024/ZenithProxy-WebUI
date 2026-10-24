@@ -8,7 +8,7 @@
 export const state = {
     /** Logged-in username shown in the prompt. */
     username: 'root',
-    /** Currently visible page id (`dashboard` | `terminal` | `players`). */
+    /** Currently visible page id (`dashboard` | `map` | `terminal` | `players` …). */
     page: 'dashboard',
 
     /** Buffered log entries, capped at MAX_TERMINAL_LINES * 2. */

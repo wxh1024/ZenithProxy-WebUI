@@ -23,6 +23,12 @@
                         height="7" width="7" x="3" y="14"/><rect height="7" width="7" x="14" y="14"/></svg></span>
                 <span class="text"><span data-i18n="nav.dashboard">仪表板</span></span>
             </li>
+            <li class="nav-item" data-page="map">
+                <span class="icon"><svg fill="none" height="18" stroke="currentColor" stroke-width="2"
+                                        viewBox="0 0 24 24"
+                                        width="18"><path d="m3 6 6-3 6 3 6-3v15l-6 3-6-3-6 3Z"/><path d="M9 3v15"/><path d="M15 6v15"/></svg></span>
+                <span class="text"><span data-i18n="nav.map">地图</span></span>
+            </li>
             <li class="nav-item" data-page="terminal">
                 <span class="icon"><svg fill="none" height="18" stroke="currentColor" stroke-width="2"
                                         viewBox="0 0 24 24"
@@ -257,6 +263,66 @@
                     <canvas id="latencyChart"></canvas>
                     <div class="latency-detail" id="latencyDetail"></div>
                 </div>
+            </div>
+        </section>
+
+        <!-- Map Page -->
+        <section class="page" id="map">
+            <div class="page-header">
+                <h2 data-i18n="page.map.title">地图与寻路</h2>
+            </div>
+            <div class="map-layout">
+                <div class="map-card">
+                    <div class="map-card-header">
+                        <span class="map-card-title" data-i18n="map.title">Map</span>
+                        <div class="map-actions">
+                            <button class="map-icon-btn" data-i18n-title="map.zoomOut" onclick="mapZoomOut()"
+                                    title="缩小">−
+                            </button>
+                            <button class="map-icon-btn" data-i18n-title="map.zoomIn" onclick="mapZoomIn()"
+                                    title="放大">+
+                            </button>
+                            <button class="map-icon-btn" data-i18n-title="map.recenter" onclick="mapRecenter()"
+                                    title="回到机器人">◎
+                            </button>
+                            <button class="map-icon-btn" data-i18n-title="map.refresh" onclick="mapRefresh()"
+                                    title="刷新地图">↻
+                            </button>
+                        </div>
+                    </div>
+                    <div class="map-canvas-wrap" id="mapCanvasWrap">
+                        <canvas id="mapCanvas"></canvas>
+                        <div class="map-hover" id="mapHover"></div>
+                        <div class="map-empty" id="mapEmpty" style="display:none;">
+                            <span data-i18n="map.offline">机器人未连接，地图暂无数据</span>
+                        </div>
+                    </div>
+                    <div class="map-footer">
+                        <span data-i18n="map.hint">点击地图任意位置，机器人将寻路过去；拖动平移，滚轮缩放</span>
+                    </div>
+                </div>
+                <aside class="map-panel">
+                    <div class="map-panel-block">
+                        <div class="map-panel-label" data-i18n="map.bot">机器人坐标</div>
+                        <div class="map-coord" id="mapCoord">-</div>
+                        <div class="map-panel-row"><span data-i18n="map.facing">朝向</span><b id="mapFacing">-</b></div>
+                    </div>
+                    <div class="map-panel-block">
+                        <div class="map-panel-label" data-i18n="map.target">目标坐标</div>
+                        <div class="map-coord" id="mapTarget">-</div>
+                        <div class="map-panel-row"><span data-i18n="map.distance">直线距离</span><b
+                                id="mapDistance">-</b></div>
+                        <div class="map-panel-row"><span data-i18n="map.remaining">路径剩余</span><b
+                                id="mapRemaining">-</b></div>
+                    </div>
+                    <div class="map-panel-block">
+                        <div class="map-panel-label" data-i18n="map.state">寻路状态</div>
+                        <div class="map-status" id="mapStatus">空闲</div>
+                    </div>
+                    <button class="btn btn-secondary map-stop" data-i18n="map.stop" id="mapStopBtn"
+                            onclick="mapStopPath()">停止寻路
+                    </button>
+                </aside>
             </div>
         </section>
 

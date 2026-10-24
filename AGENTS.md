@@ -38,15 +38,17 @@ collide with the thin JAR of the same name. Exactly one JAR lands in `build/libs
 src/main/java/com/zenith/webui/
   WebUIPlugin.java          # Plugin entrypoint, lifecycle, SSE broadcast, log buffer
   TitlePacketHandler.java   # Title packet handler
-  api/                      # /api handlers: commands, dashboard, i18n, log stream, whitelist
+  api/                      # /api handlers: commands, dashboard, i18n, log stream, whitelist, map
     DashboardHandler.java   # Aggregated dashboard payload (POJO → Gson)
     DashboardData.java      # Dashboard DTO — field names are the frontend contract
     I18nHandler.java        # GET /api/i18n — default language + log phrase table
+    MapHandler.java         # /api/map/* — tile PNG, bot state, pathfind, stop
   auth/                     # Token auth: filter, manager, login/logout controller
   authbypass/               # Offline-auth bypass packet handlers (hybrid-auth servers)
   command/                  # /webui enable|disable|status
   config/                   # WebUIConfig data class + config.json manager
   http/HttpHelper.java      # Response helpers + shared Gson (+ SSE frame builder)
+  map/MapTileRenderer.java  # 256×256 world tile renderer (chunk cache → PNG, LRU + TTL)
   queue/QueueParser.java    # 3c3u.org / 2b2t.org queue-position packet parser
   server/                   # Netty bootstrap + request routing
   staticfile/               # Static file serving with bounded LRU cache
@@ -64,6 +66,7 @@ src/main/resources/
       terminal.js   # log stream, scrollback, command input, export
       whitelist.js  # whitelist CRUD
       server.js     # connect/disconnect/reconnect/shutdown tiles
+      map.js        # canvas minimap, tile cache, click-to-path, path overlay
       util.js       # HTML escaping, toasts, ping colouring
       app.js        # entry point: auth gate, navigation, language switcher, wiring
       login.js      # login page controller
@@ -117,6 +120,18 @@ plugins/webui/
   404.
 - **Whitelist management**: Full CRUD API at `/api/whitelist`. Directly modifies the main ZenithProxy CONFIG object
   (persistence is handled by ZenithProxy itself).
+- **Map tiles come from the live chunk cache, not a tile server**: `MapTileRenderer` scans each column top-down
+  (ZenithProxy deliberately does not keep height maps — they go stale on block updates) and skips sections whose
+  `isBlockCountEmpty()` is true. Unloaded chunks stay transparent so the page shows the real extent of what the bot
+  has loaded. PNGs are encoded with `ImageIO` (no pngj dependency), cached in an access-order LRU with a 6 s TTL.
+- **Pathfinding is delegated, never re-implemented**: `POST /api/map/path` calls
+  `BARITONE.pathTo(new GoalXZ(x, z))` — the same engine behind the in-game `path` command. `GET /api/map/state`
+  reports whatever that engine is currently executing, so another module (spawn patrol, follow) driving the bot
+  shows up on the map too. Baritone plans one segment at a time, hence the dashed line from segment end to target.
+- **Map state is 1 Hz polling, not SSE**: `/api/map/state` is polled only while the page is visible
+  (`activateMap` / `stopMap`), mirroring how the dashboard stream is closed on navigation away.
+- **`ZOOM_LEVELS` is duplicated**: `js/map.js` and `MapHandler.isSupportedScale()` must agree on the
+  blocks-per-pixel values (0.5 / 1 / 2 / 4 / 8); the server answers `400` for anything else.
 - **Thread safety**: `WebUIPlugin.instance` is `volatile`. Logback appender uses a local snapshot to avoid TOCTOU after
   `stop()`. SSE client lists use `CopyOnWriteArrayList`. Log buffer uses `ConcurrentLinkedDeque<LogEntry>` plus an
   approximate size counter.
@@ -172,6 +187,10 @@ To disable authentication, set `auth.enabled` to `false` in config.json.
 | `/api/logs/stream`      | GET    | Yes  | SSE stream: pushes log history (last 500) then real-time log entries                                |
 | `/api/whitelist`        | GET    | Yes  | Returns whitelist status, player list, kick message, auto-add config                                |
 | `/api/whitelist`        | POST   | Yes  | Whitelist CRUD: `{action: "toggle/add/remove/updateConfig", ...}`                                   |
+| `/api/map/tile`         | GET    | Yes  | 256×256 PNG tile of the loaded world — `?x=&z=&s=` (tile index, blocks per pixel)                   |
+| `/api/map/state`        | GET    | Yes  | Bot position, live path polyline, progress, pathing status                                          |
+| `/api/map/path`         | POST   | Yes  | Pathfind to `{x, z}` through the built-in Baritone                                                  |
+| `/api/map/stop`         | POST   | Yes  | Abort the current path                                                                              |
 
 ### Notes
 
@@ -203,6 +222,8 @@ If the command produces structured output (embed, multi-line), it is converted t
 
 - **Dashboard**: Proxy status, player connection, uptime, version, CPU/memory/network/latency charts (2-min window, 60
   data points refreshed via SSE)
+- **Map**: Canvas minimap of the loaded world (tiles rendered server-side, 0.5×–8× zoom, drag to pan), click-to-path via
+  the built-in Baritone with the live path drawn as an overlay, and a coordinate/status panel beside the map
 - **Modules**: Toggle modules with Chinese name subtitles (data from `/api/dashboard`)
 - **Config**: Edit auth/client/server settings, save triggers restart prompt
 - **Terminal**: Command execution with autocomplete (fetched from `/api/commands`), history, log display with log level

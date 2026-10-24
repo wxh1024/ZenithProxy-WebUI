@@ -19,6 +19,16 @@ import {
 import {serverConnect, serverDisconnect, serverReconnect, serverShutdown} from './server.js';
 import {initFeatures, loadFeatures} from './features.js';
 import {initBasicConfig, loadBasicConfig} from './basic.js';
+import {
+    activateMap,
+    initMap,
+    mapRecenter,
+    mapRefresh,
+    mapStopPath,
+    mapZoomIn,
+    mapZoomOut,
+    stopMap,
+} from './map.js';
 
 // ── Navigation ──────────────────────────────────────────────────────
 
@@ -43,6 +53,9 @@ function navigateTo(page) {
         case 'dashboard':
             activateDashboard();
             break;
+        case 'map':
+            activateMap();
+            break;
         case 'terminal':
             activateTerminal();
             break;
@@ -59,6 +72,7 @@ function navigateTo(page) {
             break;
     }
     if (page !== 'dashboard') stopDashboardStream();
+    if (page !== 'map') stopMap();
 }
 
 // ── Language switcher ───────────────────────────────────────────────
@@ -107,6 +121,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     initWhitelist();
     initFeatures();
     initBasicConfig();
+    initMap();
 
     // Inline onclick handlers in index.html resolve against these bindings.
     Object.assign(window, {
@@ -122,6 +137,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         serverDisconnect,
         serverReconnect,
         serverShutdown,
+        mapZoomIn,
+        mapZoomOut,
+        mapRecenter,
+        mapRefresh,
+        mapStopPath,
     });
 
     loadCommands();

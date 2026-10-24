@@ -184,6 +184,7 @@ public class WebUIPlugin implements ZenithProxyPlugin {
                 new FeatureHandler(),
                 new BasicConfigHandler(),
                 new I18nHandler(configManager.getConfig()),
+                new MapHandler(),
                 new StaticFileHandler(pluginDir));
 
         // Server
