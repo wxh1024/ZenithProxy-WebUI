@@ -1,18 +1,18 @@
 /**
  * Map page controller.
  *
- * Wires three small modules together and owns everything that is page-shaped:
- * lifecycle, polling, pointer input, the coordinate panel and toasts.
+ * Owns everything page-shaped — lifecycle, polling, pointer input, the
+ * coordinate panel and toasts — and wires three pure modules together:
  *
- *   map/camera.js     view transform + zoom ladder (pure geometry)
- *   map/tileStore.js  browser tile cache (loading, TTL, eviction)
+ *   map/camera.js     fractional-zoom view transform (Leaflet/Mapbox model)
+ *   map/tileStore.js  sparse `z/x/y` tile cache (loading, TTL, eviction)
  *   map/renderer.js   one frame of canvas output
  *
  * Terrain comes from `/api/map/tile`, rendered server-side from the proxy's own
- * chunk cache — no online tile service is involved, so the picture is exactly
- * what the bot has loaded. Only tiles overlapping that loaded area are
- * requested; everything else on screen is a cached snapshot, which is why
- * explored ground keeps rendering instead of going blank.
+ * chunk cache; there is no online tile service, so the picture is exactly what
+ * the bot has loaded. Only tiles overlapping that loaded area are requested —
+ * everything else on screen is a cached snapshot, which is why explored ground
+ * keeps rendering instead of going blank.
  *
  * Bot state comes from `/api/map/state` (2 Hz) and the marker is tweened between
  * samples, so movement reads as motion instead of a jump every half second.
@@ -22,7 +22,7 @@ import {API_BASE, apiCall} from './api.js';
 import {onLanguageChange} from './state.js';
 import {t} from './i18n.js';
 import {showNotification} from './util.js';
-import {POLL_MS} from './map/constants.js';
+import {POLL_MS, ZOOM_NOTCH} from './map/constants.js';
 import {Camera} from './map/camera.js';
 import {TileStore} from './map/tileStore.js';
 import {drawScene, syncCanvas} from './map/renderer.js';
@@ -32,7 +32,7 @@ const WHEEL_NOTCH = 100;
 /** A position jump this large is a teleport, not movement — do not tween it. */
 const TELEPORT_BLOCKS = 64;
 
-const camera = new Camera(1);
+const camera = new Camera(0);
 const store = new TileStore(API_BASE);
 
 /** Everything the renderer needs to know about the bot. */
@@ -49,18 +49,21 @@ const state = {
     hover: null,
 };
 
-/** Marker tween between two samples (dead reckoning over the poll interval). */
-const motion = {
-    active: false,
-    x: 0,
-    z: 0,
-    fromX: 0,
-    fromZ: 0,
-    toX: 0,
-    toZ: 0,
-    start: 0,
-    duration: POLL_MS,
-};
+/**
+ * Marker position sync.
+ *
+ * The bot position is sampled at {@link POLL_MS} and the marker is driven
+ * toward the latest sample with critically-damped exponential smoothing — the
+ * marker's "velocity" is proportional to its remaining distance, so it eases to
+ * zero and stops exactly on the sample. A fixed-duration tween between samples
+ * (the previous approach) kept sliding after the source stopped, which read as
+ * the marker drifting past the target.
+ */
+const marker = {x: 0, z: 0, has: false};
+const sample = {x: 0, z: 0, has: false};
+/** Smoothing time constant: smaller tracks tighter, larger is smoother. */
+const SMOOTH_TAU_MS = 120;
+let lastFrameAt = 0;
 
 let canvas = null;
 let ctx = null;
@@ -92,8 +95,10 @@ function requestFrame() {
 function renderFrame() {
     if (!syncCanvas(canvas, ctx, camera)) return;
     const now = performance.now();
+    const dt = lastFrameAt ? Math.min(64, now - lastFrameAt) : POLL_MS;
+    lastFrameAt = now;
     const zooming = camera.advanceZoom(now);
-    const moving = advanceMotion(now);
+    const moving = advanceMarker(dt);
     updateMarkerScreen();
     drawScene(ctx, camera, store, state, Date.now());
     if (zooming || moving) requestFrame();
@@ -101,33 +106,55 @@ function renderFrame() {
 
 // ── Marker motion ───────────────────────────────────────────────────
 
-function startMotion(previous, next) {
-    if (Math.hypot(next.x - previous.x, next.z - previous.z) > TELEPORT_BLOCKS) {
-        // Teleport / respawn: sliding there would look like a glitch.
-        motion.active = false;
-        motion.x = next.x;
-        motion.z = next.z;
+/** Ingests the latest bot position sample (see the `marker` doc block). */
+function acceptSample(player) {
+    if (!player) {
+        marker.has = false;
+        sample.has = false;
         return;
     }
-    motion.fromX = previous.x;
-    motion.fromZ = previous.z;
-    motion.toX = next.x;
-    motion.toZ = next.z;
-    motion.x = previous.x;
-    motion.z = previous.z;
-    motion.start = performance.now();
-    motion.duration = POLL_MS;
-    motion.active = true;
+    if (!sample.has) {
+        // First sample: snap, no easing from an arbitrary origin.
+        sample.x = player.x;
+        sample.z = player.z;
+        marker.x = player.x;
+        marker.z = player.z;
+        marker.has = true;
+        sample.has = true;
+        return;
+    }
+    if (Math.hypot(player.x - sample.x, player.z - sample.z) > TELEPORT_BLOCKS) {
+        // Teleport / respawn: easing there would look like a glitch.
+        sample.x = player.x;
+        sample.z = player.z;
+        marker.x = player.x;
+        marker.z = player.z;
+        return;
+    }
+    sample.x = player.x;
+    sample.z = player.z;
 }
 
-/** Advances the tween; returns true while it is still running. */
-function advanceMotion(now) {
-    if (!motion.active) return false;
-    const progress = Math.min(1, (now - motion.start) / Math.max(1, motion.duration));
-    motion.x = motion.fromX + (motion.toX - motion.fromX) * progress;
-    motion.z = motion.fromZ + (motion.toZ - motion.fromZ) * progress;
-    if (progress >= 1) motion.active = false;
-    return motion.active;
+/**
+ * Moves the marker toward the latest sample. Returns true while it is still
+ * approaching (the frame loop keeps running until it settles). When the source
+ * has stopped the marker converges to the exact sample and stops — no residual
+ * velocity, no overshoot.
+ */
+function advanceMarker(dt) {
+    if (!marker.has || !sample.has) return false;
+    const dx = sample.x - marker.x;
+    const dz = sample.z - marker.z;
+    const distance = Math.hypot(dx, dz);
+    if (distance < 0.01) {
+        marker.x = sample.x;
+        marker.z = sample.z;
+        return false;
+    }
+    const amount = 1 - Math.exp(-dt / SMOOTH_TAU_MS);
+    marker.x += dx * amount;
+    marker.z += dz * amount;
+    return true;
 }
 
 /** Converts the interpolated world position into the marker's screen point. */
@@ -137,8 +164,8 @@ function updateMarkerScreen() {
         state.facing = null;
         return;
     }
-    const worldX = motion.active ? motion.x : state.player.x;
-    const worldZ = motion.active ? motion.z : state.player.z;
+    const worldX = marker.has ? marker.x : state.player.x;
+    const worldZ = marker.has ? marker.z : state.player.z;
     if (camera.follow && !camera.isZooming()) camera.centreOn(worldX, worldZ);
     state.marker = {x: camera.toScreenX(worldX), y: camera.toScreenZ(worldZ)};
     state.facing = state.player.yaw;
@@ -151,10 +178,6 @@ async function poll() {
     const data = await apiCall('/map/state');
     if (!data || !active) return;
 
-    const previous = state.player
-        ? {x: motion.active ? motion.x : state.player.x, z: motion.active ? motion.z : state.player.z}
-        : null;
-
     state.connected = !!data.connected;
     state.player = data.player || null;
     state.path = Array.isArray(data.path) ? data.path : [];
@@ -164,9 +187,7 @@ async function poll() {
     state.target = data.target || null;
     store.setLoadedArea(data.view || null);
 
-    if (state.player) startMotion(previous || state.player, state.player);
-    else motion.active = false;
-
+    acceptSample(state.player);
     updatePanel();
     requestFrame();
 }
@@ -192,7 +213,7 @@ function onPointerMove(event) {
         const dy = event.clientY - drag.startY;
         if (!drag.moved && Math.abs(dx) + Math.abs(dy) > 4) drag.moved = true;
         if (drag.moved) {
-            camera.centreOn(drag.cx - dx * camera.scale, drag.cz - dy * camera.scale);
+            camera.centreOn(drag.cx - dx * Math.pow(2, camera.zoom), drag.cz - dy * Math.pow(2, camera.zoom));
             camera.follow = false;
         }
     }
@@ -215,7 +236,7 @@ function onPointerLeave() {
     requestFrame();
 }
 
-/** Wheel accumulates before moving a rung, so a flick zooms a sane amount. */
+/** Wheel accumulates before moving a level, so a flick zooms a sane amount. */
 function onWheel(event) {
     event.preventDefault();
     const unit = event.deltaMode === 1 ? 33 : event.deltaMode === 2 ? 300 : 1;
@@ -225,7 +246,7 @@ function onWheel(event) {
     wheelDelta -= steps * WHEEL_NOTCH;
     const {px, py} = pointerPos(event);
     camera.follow = false;
-    zoomStep(steps, px, py);
+    zoomStep(-steps * ZOOM_NOTCH, px, py); // scroll up (negative) = zoom in
 }
 
 async function goTo(x, z) {
@@ -263,11 +284,16 @@ function setText(id, value) {
     if (el && el.textContent !== value) el.textContent = value;
 }
 
+function magnificationLabel() {
+    const pxPerBlock = Math.pow(2, -camera.zoom);
+    return pxPerBlock >= 10 ? pxPerBlock.toFixed(0) : pxPerBlock >= 1 ? pxPerBlock.toFixed(1) : pxPerBlock.toFixed(2);
+}
+
 function updateHoverLabel() {
     const el = document.getElementById('mapHover');
     if (!el) return;
     el.textContent = state.hover
-        ? `X ${state.hover.x}  Z ${state.hover.z}  ×${(1 / camera.scale).toFixed(1)}`
+        ? `X ${state.hover.x}  Z ${state.hover.z}  ×${magnificationLabel()}`
         : '';
 }
 
@@ -296,17 +322,16 @@ function updatePanel() {
 
 // ── Public API (also exposed on window for inline handlers) ─────────
 
-function zoomStep(steps, anchorPx, anchorPy) {
-    if (camera.zoomBy(steps, anchorPx, anchorPy)) requestFrame();
+function zoomStep(delta, anchorPx, anchorPy) {
+    if (camera.zoomBy(delta, anchorPx, anchorPy)) requestFrame();
 }
 
 export function mapZoomIn() {
-    // Lower scale = closer, so zooming in walks the ladder backwards.
-    zoomStep(-1);
+    zoomStep(-ZOOM_NOTCH);
 }
 
 export function mapZoomOut() {
-    zoomStep(1);
+    zoomStep(ZOOM_NOTCH);
 }
 
 /** Re-centres on the bot and resumes following it. */
@@ -314,8 +339,8 @@ export function mapRecenter() {
     camera.finishZoom();
     camera.follow = true;
     if (state.player) {
-        camera.centreOn(motion.active ? motion.x : state.player.x,
-            motion.active ? motion.z : state.player.z);
+        camera.centreOn(marker.has ? marker.x : state.player.x,
+            marker.has ? marker.z : state.player.z);
     }
     requestFrame();
 }

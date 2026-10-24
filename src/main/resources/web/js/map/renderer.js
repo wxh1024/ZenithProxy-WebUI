@@ -1,10 +1,9 @@
 /**
  * Renderer: paints one frame of the map onto a canvas.
  *
- * <p>Draw order is deliberate: a coarse fallback layer first (so nothing on
- * screen is ever empty when *some* resolution is cached), then the active level
- * on top, then the grid, the path and the markers. It reads the camera and the
- * tile store but never mutates the page.
+ * Draw order (bottom → top): a coarse fallback layer for cells the active level
+ * does not cover yet, then the active level, then the grid, path and markers.
+ * It reads the camera and the tile store but never mutates the page.
  */
 
 import {COLOR, GRID_STEPS, TILE_PX} from './constants.js';
@@ -13,8 +12,8 @@ import {COLOR, GRID_STEPS, TILE_PX} from './constants.js';
  * Makes the canvas' backing store match its CSS box and returns false while the
  * element has no size yet (hidden page).
  *
- * <p>Measured per frame on purpose: the card can be re-laid out at any time, and
- * a stale size shifts every tile *and* every click conversion.
+ * Measured per frame on purpose: the card can be re-laid out at any time, and a
+ * stale size shifts every tile *and* every click conversion.
  */
 export function syncCanvas(canvas, ctx, camera) {
     if (!canvas || !ctx) return false;
@@ -44,31 +43,32 @@ export function drawScene(ctx, camera, store, state, now) {
 }
 
 function drawTiles(ctx, camera, store, now) {
-    const level = camera.tileScale;
+    const level = camera.fetchLevel();
     const range = camera.tileRange(level);
-    // Fetching during a transition would request levels that are about to be
-    // replaced; wait until the zoom settles.
+    // Tiles are only fetched while the zoom rests on an integer level, otherwise
+    // a mid-transition level would be requested and thrown away.
     const canFetch = !camera.isZooming();
     const missing = [];
     const ready = [];
 
-    for (let tx = range.firstX; tx <= range.lastX; tx++) {
-        for (let tz = range.firstZ; tz <= range.lastZ; tz++) {
-            const fetch = canFetch && store.isRefreshable(level, tx, tz);
-            const entry = store.get(level, tx, tz, fetch);
+    for (let x = range.firstX; x <= range.lastX; x++) {
+        for (let y = range.firstY; y <= range.lastY; y++) {
+            const fetch = canFetch && store.isRefreshable(level, x, y);
+            const entry = store.get(level, x, y, fetch);
             if (entry && entry.state === 'ready' && entry.img) ready.push(entry);
-            else missing.push({tx, tz});
+            else missing.push({x, y});
         }
     }
 
     if (missing.length) {
-        // Without cached terrain this cell stays background — but wherever *any*
-        // level still has the ground, it is drawn scaled instead of vanishing.
+        // Best-available resolution: a cell that has no tile at the active level
+        // is filled with a cached tile from another level (drawn scaled). This is
+        // why zooming never blanks ground the bot has already explored.
         const candidates = store.levelsByProximity(level);
         if (candidates.length) {
             const drawn = new Set();
             for (const cell of missing) {
-                const cover = store.coveringTile(level, cell.tx, cell.tz, candidates);
+                const cover = store.coveringTile(level, cell.x, cell.y, candidates);
                 if (!cover || drawn.has(cover.key)) continue;
                 drawn.add(cover.key);
                 drawTile(ctx, camera, cover);
@@ -84,10 +84,11 @@ function drawTiles(ctx, camera, store, now) {
 }
 
 function drawTile(ctx, camera, entry) {
-    const size = camera.tileSize(entry.level);
+    const size = camera.tileSizePx(entry.level);
     const crisp = Math.abs(size - TILE_PX) < 0.25;
-    const left = camera.toScreenX(entry.tx * TILE_PX * entry.level);
-    const top = camera.toScreenZ(entry.tz * TILE_PX * entry.level);
+    const span = TILE_PX * Math.pow(2, entry.level);
+    const left = camera.toScreenX(entry.x * span);
+    const top = camera.toScreenZ(entry.y * span);
     ctx.drawImage(
         entry.img,
         crisp ? Math.round(left) : left,
@@ -99,10 +100,10 @@ function drawTile(ctx, camera, entry) {
 
 /** Coordinate grid with edge labels, so positions can be read off the map. */
 function drawGrid(ctx, camera) {
-    const step = GRID_STEPS.find(candidate => candidate / camera.scale >= 90)
+    const step = GRID_STEPS.find(candidate => candidate * Math.pow(2, -camera.zoom) >= 90)
         || GRID_STEPS[GRID_STEPS.length - 1];
-    const halfWBlocks = (camera.width / 2) * camera.scale;
-    const halfHBlocks = (camera.height / 2) * camera.scale;
+    const halfWBlocks = (camera.width / 2) * Math.pow(2, camera.zoom);
+    const halfHBlocks = (camera.height / 2) * Math.pow(2, camera.zoom);
 
     ctx.strokeStyle = COLOR.grid;
     ctx.lineWidth = 1;

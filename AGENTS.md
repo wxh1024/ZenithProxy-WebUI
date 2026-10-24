@@ -138,12 +138,15 @@ plugins/webui/
   `BARITONE.pathTo(new GoalXZ(x, z))` — the same engine behind the in-game `path` command. `GET /api/map/state`
   reports whatever that engine is currently executing, so another module (spawn patrol, follow) driving the bot
   shows up on the map too. Baritone plans one segment at a time, hence the dashed line from segment end to target.
-- **Map state is 1 Hz polling, not SSE**: `/api/map/state` is polled only while the page is visible
-  (`activateMap` / `stopMap`), mirroring how the dashboard stream is closed on navigation away.
-- **Zoom is a 1.25× ladder over 0.1–8 blocks per pixel**: `js/map.js` builds `ZOOM_LEVELS` from
-  `MAX_SCALE` downward, and `MapHandler.isSupportedScale()` only enforces the range (the value is
-  continuous during the animation). Tiles are fetched for the settled level only; the previous level
-  is stretched underneath during the 190 ms transition so no frame is left with a hole.
+- **Map state is 2 Hz polling, not SSE**: `/api/map/state` is polled only while the page is visible
+  (`activateMap` / `stopMap`), mirroring how the dashboard stream is closed on navigation away. The bot marker
+  is driven toward the latest sample with critically-damped exponential smoothing (velocity ∝ remaining distance),
+  so it eases to a stop and snaps exactly once the source stops — never drifts past the target.
+- **Tiles use the slippy-map pyramid (Leaflet / Mapbox GL)**: a tile is `z/x/y` (integer zoom, column, row) and
+  covers `TILE_PX * 2^z` blocks. The camera zoom is a *fractional* float; tiles are fetched at `round(zoom)` and
+  the current level is drawn scaled while a transition or a fractional notch is in flight. The zoom range is
+  `ZOOM_MIN..ZOOM_MAX` = `-4..6` (16 px/block … 64 blocks/px), and one notch is `ZOOM_NOTCH = 1/3` of a level
+  (≈1.26×). `MapHandler` enforces the same integer range and derives the render scale as `2^zoom`.
 - **Thread safety**: `WebUIPlugin.instance` is `volatile`. Logback appender uses a local snapshot to avoid TOCTOU after
   `stop()`. SSE client lists use `CopyOnWriteArrayList`. Log buffer uses `ConcurrentLinkedDeque<LogEntry>` plus an
   approximate size counter.
@@ -199,7 +202,7 @@ To disable authentication, set `auth.enabled` to `false` in config.json.
 | `/api/logs/stream`      | GET    | Yes  | SSE stream: pushes log history (last 500) then real-time log entries                                |
 | `/api/whitelist`        | GET    | Yes  | Returns whitelist status, player list, kick message, auto-add config                                |
 | `/api/whitelist`        | POST   | Yes  | Whitelist CRUD: `{action: "toggle/add/remove/updateConfig", ...}`                                   |
-| `/api/map/tile`         | GET    | Yes  | 256×256 PNG tile of the loaded world — `?x=&z=&s=` (tile index, blocks per pixel)                   |
+| `/api/map/tile`         | GET    | Yes  | 256×256 PNG tile of the loaded world — `?z=&x=&y=` (integer zoom, tile column/row)                  |
 | `/api/map/state`        | GET    | Yes  | Bot position, live path polyline, progress, pathing status                                          |
 | `/api/map/path`         | POST   | Yes  | Pathfind to `{x, z}` through the built-in Baritone                                                  |
 | `/api/map/stop`         | POST   | Yes  | Abort the current path                                                                              |

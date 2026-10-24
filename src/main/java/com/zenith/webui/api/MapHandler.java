@@ -54,12 +54,12 @@ public class MapHandler {
     /** Upper bound on path vertices sent to the browser; longer paths are sampled. */
     private static final int MAX_PATH_POINTS = 600;
     /**
-     * Zoom range in blocks per pixel. The browser zooms in 1.25× rungs across
-     * this range, so the value is continuous rather than a fixed list — only the
-     * extremes are enforced here.
+     * Zoom range, in integer tile levels (slippy-map convention): at level z a
+     * tile covers {@code TILE_PX * 2^z} blocks, i.e. {@code 2^z} blocks per
+     * pixel. Must match {@code ZOOM_MIN} / {@code ZOOM_MAX} in js/map/constants.js.
      */
-    private static final double MIN_SCALE = 0.1;
-    private static final double MAX_SCALE = 8.0;
+    private static final int MIN_ZOOM = -4;
+    private static final int MAX_ZOOM = 6;
 
     private final MapTileRenderer renderer = new MapTileRenderer();
     /** The path request issued from this page; {@code null} until the first click. */
@@ -88,25 +88,26 @@ public class MapHandler {
             HttpHelper.sendError(ctx, HttpResponseStatus.METHOD_NOT_ALLOWED, "Method Not Allowed");
             return;
         }
+        // Slippy-map addressing: z = integer zoom, x/y = tile column/row.
+        final Integer zoom = intParam(req.uri(), "z");
         final Integer tileX = intParam(req.uri(), "x");
-        final Integer tileZ = intParam(req.uri(), "z");
-        final Double scale = doubleParam(req.uri(), "s");
-        if (tileX == null || tileZ == null) {
-            HttpHelper.sendError(ctx, HttpResponseStatus.BAD_REQUEST, "Missing x/z");
+        final Integer tileY = intParam(req.uri(), "y");
+        if (zoom == null || tileX == null || tileY == null) {
+            HttpHelper.sendError(ctx, HttpResponseStatus.BAD_REQUEST, "Missing z/x/y");
             return;
         }
-        final double resolvedScale = normalizeScale(scale == null ? 1.0 : scale);
-        if (!isSupportedScale(resolvedScale)) {
-            HttpHelper.sendError(ctx, HttpResponseStatus.BAD_REQUEST, "Unsupported scale");
+        if (zoom < MIN_ZOOM || zoom > MAX_ZOOM) {
+            HttpHelper.sendError(ctx, HttpResponseStatus.BAD_REQUEST, "Zoom out of range");
             return;
         }
-        // 256 px * scale blocks per tile; reject tiles that fall outside the world.
-        final long span = (long) Math.ceil(MapTileRenderer.TILE_PX * resolvedScale);
-        if (Math.abs((long) tileX * span) > MAX_COORD + span || Math.abs((long) tileZ * span) > MAX_COORD + span) {
+        // At level z a tile covers TILE_PX * 2^z blocks (2^z blocks per pixel).
+        final double scale = Math.pow(2.0, zoom);
+        final long span = (long) Math.ceil(MapTileRenderer.TILE_PX * scale);
+        if (Math.abs((long) tileX * span) > MAX_COORD + span || Math.abs((long) tileY * span) > MAX_COORD + span) {
             HttpHelper.sendError(ctx, HttpResponseStatus.BAD_REQUEST, "Tile out of range");
             return;
         }
-        final byte[] png = renderer.tile(tileX, tileZ, resolvedScale);
+        final byte[] png = renderer.tile(tileX, tileY, scale);
         HttpHelper.sendBytes(ctx, png, "image/png", "no-store");
     }
 
@@ -399,25 +400,5 @@ public class MapHandler {
         } catch (final NumberFormatException e) {
             return null;
         }
-    }
-
-    private static Double doubleParam(final String uri, final String name) {
-        final String raw = queryParam(uri, name);
-        if (raw == null || raw.isEmpty()) return null;
-        try {
-            return Double.parseDouble(raw);
-        } catch (final NumberFormatException e) {
-            return null;
-        }
-    }
-
-    /** Kept in sync with MIN_SCALE / ZOOM_LEVELS in js/map.js. */
-    private static boolean isSupportedScale(final double scale) {
-        return scale >= MIN_SCALE - 1e-9 && scale <= MAX_SCALE + 1e-9;
-    }
-
-    /** Rounds the zoom to 4 decimals so cache keys never split on float noise. */
-    private static double normalizeScale(final double scale) {
-        return Math.round(scale * 10000.0) / 10000.0;
     }
 }
