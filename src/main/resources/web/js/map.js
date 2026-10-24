@@ -39,9 +39,7 @@ const ZOOM_DURATION_MS = 190;
 const DEFAULT_SCALE = 1;
 /** Grid line spacing candidates, in blocks. */
 const GRID_STEPS = [8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096];
-const MAX_CACHED_TILES = 150;
-/** Absolute ceiling — reached only if nothing can be dropped without a hole. */
-const HARD_CACHED_TILES = 320;
+const MAX_CACHED_TILES = 180;
 const POLL_MS = 500;
 /** Wheel pixels that add up to one notch. */
 const WHEEL_NOTCH = 100;
@@ -194,48 +192,62 @@ function getTile(tx, tz, scale, fetchTile) {
 }
 
 /**
- * Evicts cached tiles, but never at the cost of a hole on screen.
+ * Evicts cached tiles under memory pressure, cheapest to lose first.
  *
- * <p>Two guarantees:
+ * <p>Tiles are kept around deliberately: terrain the bot has already seen is
+ * drawn from cache even after it leaves the loaded area, so panning back is
+ * instant and never re-renders on the server. Only the budget forces drops.
+ *
+ * <p>Priority (first to go):
  * <ol>
- *   <li>a level that is currently drawn (the settled level and the fallback
- *       level under a running transition) is never evicted;</li>
- *   <li>an older tile is only dropped once the active level already has a
- *       <em>loaded</em> tile covering the same ground. If the new level still
- *       has gaps, the old tile stays — a missing tile would flash background.</li>
+ *   <li>tiles the active level already covers with a loaded tile — nothing is
+ *       lost visually;</li>
+ *   <li>older levels over ground that is still loaded (a refresh can rebuild
+ *       them);</li>
+ *   <li>snapshots from outside the loaded area — the only copy, kept last;</li>
  * </ol>
- *
- * <p>Least-recently-drawn goes first. The list can therefore stay above the
- * soft budget (nothing is safely droppable yet); the hard ceiling is a memory
- * guard only, since every decoded tile costs ~256 KB.
+ * Tiles inside the current viewport are never dropped, so eviction can not open
+ * a hole on screen. Oldest-drawn goes first within each tier.
  */
 function trimTileCache() {
     const over = tileCache.size - MAX_CACHED_TILES;
     if (over <= 0) return;
-    const kept = new Set([String(view.tileScale), String(view.prevTileScale)]);
+    const visible = visibleTileKeys();
     const candidates = [];
     for (const [key, entry] of tileCache) {
-        if (kept.has(String(entry.level))) continue;
-        candidates.push({key, entry});
+        if (visible.has(key)) continue;
+        const outside = !tileIsLoaded(entry.tx, entry.tz, TILE_PX * entry.level);
+        candidates.push({key, entry, rank: hasReplacement(entry) ? 0 : outside ? 2 : 1});
     }
-    candidates.sort((a, b) => (a.entry.touched || 0) - (b.entry.touched || 0));
+    candidates.sort((a, b) => a.rank - b.rank || (a.entry.touched || 0) - (b.entry.touched || 0));
 
     let remaining = over;
-    const blocked = [];
     for (const candidate of candidates) {
         if (remaining <= 0) break;
-        if (!hasReplacement(candidate.entry)) {
-            blocked.push(candidate);
-            continue;
-        }
         tileCache.delete(candidate.key);
         remaining--;
     }
-    if (tileCache.size <= HARD_CACHED_TILES) return;
-    for (const candidate of blocked) {
-        if (tileCache.size <= HARD_CACHED_TILES) break;
-        tileCache.delete(candidate.key);
+}
+
+/** Keys of every tile currently inside the viewport (both drawn levels). */
+function visibleTileKeys() {
+    const keys = new Set();
+    const halfW = (view.width / 2) * view.scale;
+    const halfH = (view.height / 2) * view.scale;
+    for (const level of [view.tileScale, view.prevTileScale]) {
+        if (!level) continue;
+        const span = TILE_PX * level;
+        const firstX = Math.floor((view.cx - halfW) / span);
+        const lastX = Math.floor((view.cx + halfW) / span);
+        const firstZ = Math.floor((view.cz - halfH) / span);
+        const lastZ = Math.floor((view.cz + halfH) / span);
+        for (let tx = firstX; tx <= lastX; tx++) {
+            for (let tz = firstZ; tz <= lastZ; tz++) {
+                keys.add(`${level}/${tx}/${tz}`);
+            }
+        }
     }
+    return keys;
 }
 
 /** True when the active level has a loaded tile for every block of `entry`. */
@@ -374,10 +386,11 @@ function drawTileLayer(scale, fetchTiles) {
         const left = screenX(tx * span);
         const drawLeft = crisp ? Math.round(left) : left;
         for (let tz = firstZ; tz <= lastZ; tz++) {
-            // Nothing outside the proxy's loaded chunks is drawn or even
-            // requested — that area would come back empty anyway.
-            if (!tileIsLoaded(tx, tz, span)) continue;
-            const entry = getTile(tx, tz, scale, fetchTiles);
+            // Terrain the bot has already seen stays on screen as a cached
+            // snapshot; only tiles inside the loaded area are (re)requested, so
+            // old ground never costs another render and never goes blank.
+            const refreshable = tileIsLoaded(tx, tz, span);
+            const entry = getTile(tx, tz, scale, fetchTiles && refreshable);
             entry.touched = now;
             if (entry.state !== 'ready' || !entry.img) continue;
             const top = crisp ? Math.round(screenY(tz * span)) : screenY(tz * span);
